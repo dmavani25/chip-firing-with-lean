@@ -9,6 +9,7 @@ package "chip-firing-with-lean" where
   ]
 
 require "leanprover-community" / "mathlib"
+require Paperproof from git "https://github.com/Paper-Proof/paperproof.git"@"main"/"lean"
 
 @[default_target]
 lean_lib «ChipFiringWithLean» where
