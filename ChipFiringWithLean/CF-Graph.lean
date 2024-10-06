@@ -4,6 +4,7 @@ import Mathlib.Data.Multiset.Basic
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
+-- import LeanCopilot
 
 open Multiset Finset
 

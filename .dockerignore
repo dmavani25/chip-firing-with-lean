@@ -1,0 +1,5 @@
+*.txt
+.vscode
+.lake
+tmp
+clang+llvm*
