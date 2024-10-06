@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-WORKDIR /lean4-example
+WORKDIR /chip-firing-with-lean
 COPY . .
 
 # Install dependencies.
