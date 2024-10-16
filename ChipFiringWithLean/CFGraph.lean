@@ -159,3 +159,20 @@ def laplacian_matrix (G : CFGraph V) : Matrix V V ℤ :=
 -- Apply the Laplacian matrix to a firing script to get a new divisor
 def apply_laplacian (G : CFGraph V) (σ : firing_script V) : CFDiv V :=
   fun v => (laplacian_matrix G).mulVec σ v
+
+-- Degree of a divisor
+def deg (D : CFDiv V) : ℤ := ∑ v, D v
+
+-- Define q-reduced divisors
+def q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) : Prop :=
+  (∀ v ∈ {v | v ≠ q}, D v ≥ 0) ∧
+  (∀ S ⊆ {v | v ≠ q}, S ≠ ∅ → ∃ v ∈ S, D v < val G v - finset_sum (Finset.univ.filter (λ v' => v' ≠ v)) (λ w => num_edges G w v))
+
+-- Define the ordering of divisors
+def divisor_order (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
+  (∃ T : Finset V, T ⊆ (Finset.univ.filter (λ v => v ≠ q)) ∧ D' = set_firing G D T) ∧
+  (∀ T' : Finset V, T' ⊆ (Finset.univ.filter (λ v => v ≠ q)) → D' ≠ set_firing G D T')
+
+-- Define the ordering of divisors using the divisor_order relation
+def divisor_ordering (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
+  divisor_order G q D' D
