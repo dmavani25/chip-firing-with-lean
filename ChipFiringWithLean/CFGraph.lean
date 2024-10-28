@@ -176,3 +176,85 @@ def divisor_order (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
 -- Define the ordering of divisors using the divisor_order relation
 def divisor_ordering (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
   divisor_order G q D' D
+
+-- Legal set-firing: Ensure no vertex in S is in debt after firing
+def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
+  ∀ v ∈ S, set_firing G D S v ≥ 0
+
+-- A configuration on a graph G with distinguished vertex q removed
+structure Config (V : Type) (q : V) :=
+  (val : V → ℤ)
+  (non_negative_except_q : ∀ v : V, v ≠ q → val v ≥ 0)
+
+-- Define degree of a configuration
+def degree {q : V} (c : Config V q) : ℤ :=
+  ∑ v in (univ.filter (λ v => v ≠ q)), c.val v
+
+-- Ordering on configurations: c ≥ c' if c(v) ≥ c'(v) for all v ∈ V
+def config_ge {q : V} (c c' : Config V q) : Prop :=
+  ∀ v : V, c.val v ≥ c'.val v
+
+-- Non-negative configuration: c ≥ 0 if all values are non-negative
+def config_nonnegative {q : V} (c : Config V q) : Prop :=
+  ∀ v : V, c.val v ≥ 0
+
+-- Linear equivalence of configurations: c ∼ c' if they can be transformed by lending/borrowing
+def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
+  let diff := λ v => c'.val v - c.val v
+  diff ∈ AddSubgroup.closure (Set.range (λ v => λ w => if w = v then -val G v else num_edges G v w))
+
+-- Superstable configuration: No legal non-empty set-firing exists
+def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
+  ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.val S v < val G v
+
+-- Example: Construct a valid configuration
+def example_config (q : V) : Config V q :=
+  { val := λ v => if v = q then -1 else 2,
+    non_negative_except_q := λ v hv => by
+      simp
+      split_ifs with h
+      contradiction
+      exact zero_le_two }
+
+-- Edge orientation structure assigns direction to each edge
+structure Orientation (G : CFGraph V) :=
+  (directed_edges : Multiset (V × V))
+  (consistent : ∀ e ∈ G.edges, e ∈ directed_edges ∨ (e.snd, e.fst) ∈ directed_edges)
+
+-- Reverse orientation swaps the direction of all edges
+def reverse_orientation (G : CFGraph V) (O : Orientation G) : Orientation G :=
+  ⟨O.directed_edges.map (λ e => (e.snd, e.fst)), λ e h => by
+    cases O.consistent e h with
+    | inl _ => exact Or.inr (Multiset.mem_map_of_mem _ ‹_›)
+    | inr _ => exact Or.inl (Multiset.mem_map_of_mem _ ‹_›)⟩
+
+-- Indegree and outdegree under a given orientation
+def indeg (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
+  Multiset.card (O.directed_edges.filter (λ e => e.snd = v))
+
+def outdeg (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
+  Multiset.card (O.directed_edges.filter (λ e => e.fst = v))
+
+-- A vertex is a source if it has no incoming edges
+def is_source (G : CFGraph V) (O : Orientation G) (v : V) : Prop :=
+  indeg G O v = 0
+
+-- A vertex is a sink if it has no outgoing edges
+def is_sink (G : CFGraph V) (O : Orientation G) (v : V) : Prop :=
+  outdeg G O v = 0
+
+-- Define the divisor associated with an orientation
+def divisor_of_orientation (G : CFGraph V) (O : Orientation G) : CFDiv V :=
+  λ v => indeg G O v - 1
+
+-- Define the canonical divisor of a graph
+def canonical_divisor (G : CFGraph V) : CFDiv V :=
+  λ v => (val G v) - 2
+
+-- Maximal unwinnable divisor: adding any vertex makes it winnable
+def maximal_unwinnable (G : CFGraph V) (D : CFDiv V) : Prop :=
+  ¬winnable G D ∧ ∀ v : V, winnable G (λ w => D w + if w = v then 1 else 0)
+
+-- Genus of a graph, equivalent to the cycle rank
+def genus (G : CFGraph V) : ℤ :=
+  Multiset.card G.edges - Fintype.card V + 1
