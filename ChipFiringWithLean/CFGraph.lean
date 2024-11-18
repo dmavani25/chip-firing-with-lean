@@ -205,7 +205,7 @@ def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
 
 -- Superstable configuration: No legal non-empty set-firing exists
 def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
-  ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.val S v < val G v
+  ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.val S v < c.val v
 
 -- Example: Construct a valid configuration
 def example_config (q : V) : Config V q :=
