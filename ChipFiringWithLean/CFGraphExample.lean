@@ -21,12 +21,31 @@ instance : Fintype Person where
     all_goals { simp }
   }
 
+-- Example usage for Person type in a loopless graph
+def exampleEdges : Multiset (Person × Person) :=
+  Multiset.ofList [
+    (Person.A, Person.B),
+    (Person.B, Person.C),
+    (Person.C, Person.E)
+  ]
+theorem loopless_example_edges : isLoopless exampleEdges = true := by rfl
+
+-- Example usage for Person type in a graph with a loop
+def edgesWithLoop : Multiset (Person × Person) :=
+  Multiset.ofList [
+    (Person.A, Person.B),
+    (Person.A, Person.A),  -- This is a loop
+    (Person.B, Person.C)
+  ]
+theorem loopless_test_edges_with_loop : isLoopless edgesWithLoop = false := by rfl
+
 def example_graph : CFGraph Person := {
-  edges := Multiset.sum $ Multiset.map (fun p => Multiset.replicate 1 p) [
+  edges := Multiset.ofList [
     (Person.A, Person.B), (Person.B, Person.C),
     (Person.A, Person.C), (Person.A, Person.E),
     (Person.A, Person.E), (Person.E, Person.C)
-  ]
+  ],
+  loopless := by rfl
 }
 
 def initial_wealth : CFDiv Person :=
@@ -117,7 +136,7 @@ theorem initial_not_effective_bool : effective_bool initial_wealth = false := by
 -- the negation operator (¬) is not reducible to a simple syntactic equality.
 theorem after_W₃_firing_effective : effective_bool after_W₃_firing = true := by rfl
 
--- Test Laplacian matrix properties
+-- Test Laplacian matrix values and symmetricity
 def example_laplacian := laplacian_matrix example_graph
 theorem laplacian_diagonal_A : example_laplacian Person.A Person.A = 4 := by rfl
 theorem laplacian_diagonal_B : example_laplacian Person.B Person.B = 2 := by rfl
@@ -129,19 +148,20 @@ theorem laplacian_off_diagonal_AE : example_laplacian Person.A Person.E = -2 := 
 theorem laplacian_off_diagonal_BC : example_laplacian Person.B Person.C = -1 := by rfl
 theorem laplacian_off_diagonal_BE : example_laplacian Person.B Person.E = 0 := by rfl
 theorem laplacian_off_diagonal_CE : example_laplacian Person.C Person.E = -1 := by rfl
-theorem check_example_laplacian_symmetry : Matrix.IsSymm example_laplacian := by
+theorem check_example_laplacian_symmetry : Matrix.IsSymm example_laplacian := by {
   apply Matrix.IsSymm.ext
   intros i j
   cases i <;> cases j
   all_goals {
     rfl
   }
+}
 
 -- Test script firing through laplacians (Needs more thought)
-def firing_script_1 : firing_script Person := fun v => match v with
+def firing_script_example : firing_script Person := fun v => match v with
   | Person.A => 0
   | Person.B => -1
   | Person.C => 1
   | Person.E => 0
-def result_1 := apply_laplacian example_graph firing_script_1
-theorem laplacian_preserves_degree : deg result_1 = 0 := by rfl
+def res_div_post_lap_based_script_firing := apply_laplacian example_graph firing_script_example initial_wealth
+theorem lap_based_script_firing_preserves_degree : deg res_div_post_lap_based_script_firing = 2 := by rfl

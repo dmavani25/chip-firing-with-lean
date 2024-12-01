@@ -3,3 +3,4 @@
 import ChipFiringWithLean.Basic
 import ChipFiringWithLean.CFGraph
 import ChipFiringWithLean.CFGraphExample
+import ChipFiringWithLean.RiemannRochForGraphs
