@@ -165,3 +165,26 @@ def firing_script_example : firing_script Person := fun v => match v with
   | Person.E => 0
 def res_div_post_lap_based_script_firing := apply_laplacian example_graph firing_script_example initial_wealth
 theorem lap_based_script_firing_preserves_degree : deg res_div_post_lap_based_script_firing = 2 := by rfl
+
+-- [@TODO?] Test divisor that should be q-reduced with respect to Person.A
+def q_reduced_example : CFDiv Person := fun v => match v with
+  | Person.A => -2  -- q vertex can be negative
+  | Person.B => 1   -- non-negative for non-q vertices
+  | Person.C => 2
+  | Person.E => 1
+
+-- Test divisor that is not q-reduced with respect to Person.A
+def non_q_reduced_example : CFDiv Person := fun v => match v with
+  | Person.A => 1
+  | Person.B => -1  -- violates non-negativity condition for non-q vertices
+  | Person.C => 2
+  | Person.E => 1
+
+theorem non_q_reduced_example_is_invalid : ¬q_reduced example_graph Person.A non_q_reduced_example := by {
+  intro h
+  cases h with
+  | intro h1 h2 => {
+    have hB := h1 Person.B (by simp)
+    simp [non_q_reduced_example] at hB
+  }
+}

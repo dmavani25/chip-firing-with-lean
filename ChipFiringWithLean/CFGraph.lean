@@ -4,6 +4,7 @@ import Mathlib.Data.Multiset.Basic
 import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
+import Mathlib.Algebra.BigOperators.Group.Finset
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
@@ -28,7 +29,6 @@ structure CFGraph (V : Type) [DecidableEq V] [Fintype V] :=
 
 -- Divisor as a function from vertices to integers
 def CFDiv (V : Type) := V → ℤ
-def divisor_value (D : CFDiv V) (v : V) : ℤ := D v
 
 -- Number of edges between two vertices as an integer
 def num_edges (G : CFGraph V) (v w : V) : ℤ :=
@@ -54,13 +54,32 @@ def finset_sum {α β} [AddCommMonoid β] (s : Finset α) (f : α → β) : β :
 def set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : CFDiv V :=
   λ w => D w + finset_sum S (λ v => if w = v then -vertex_degree G v else num_edges G v w)
 
+-- Helpers: Add new axioms for the sum being zero
+axiom vertex_degree_eq_sum_edges (G : CFGraph V) (w : V) :
+    vertex_degree G w = finset_sum (Finset.univ : Finset V) (fun v => num_edges G v w) --:= by
+  --sorry  -- Proof would go here
+axiom num_edges_comm (G : CFGraph V) (v w : V) :
+    num_edges G v w = num_edges G w v --:= by
+  --sorry  -- Proof would go here
+axiom set_firing_sum_zero (G : CFGraph V) (w : V) :
+  finset_sum (Finset.univ : Finset V)
+    (fun v => if w = v then -vertex_degree G v else num_edges G v w) = 0
+
+-- (Optional) Proposition using the axiom
+theorem set_firing_all_vertices_is_zero (G : CFGraph V) (D : CFDiv V) :
+    set_firing G D (Finset.univ : Finset V) = D := by
+  -- Show equality of functions
+  funext w
+
+  -- Expand definition of set_firing
+  simp [set_firing]
+
+  -- Use the axiom and simplify
+  rw [set_firing_sum_zero G w]
+
 -- (Optional) Proposition: Borrowing from vertex v ∈ V is equivalent to lending from all vertices in V \ {v}.
 axiom borrowing_eq_set_firing_complement (G : CFGraph V) (D : CFDiv V) (v : V) :
   borrowing_move G D v = set_firing G D (Finset.univ.erase v)
-
--- (Optional) Proposition (Continued): If we perform set-firing from all vertices in V, the net effect on divisor D is zero.
-axiom set_firing_all_vertices_is_zero (G : CFGraph V) (D : CFDiv V) :
-    set_firing G D (Finset.univ : Finset V) = D
 
 instance : AddGroup (CFDiv V) := Pi.addGroup
 
@@ -129,6 +148,9 @@ def winnable (G : CFGraph V) (D : CFDiv V) : Prop :=
 def complete_linear_system (G: CFGraph V) (D: CFDiv V) : Set (CFDiv V) :=
   {D' : CFDiv V | linear_equiv G D D' ∧ effective D'}
 
+-- Degree of a divisor
+def deg (D : CFDiv V) : ℤ := ∑ v, D v
+
 -- Define a firing script as a function from vertices to integers
 def firing_script (V : Type) := V → ℤ
 
@@ -145,9 +167,6 @@ def laplacian_matrix (G : CFGraph V) : Matrix V V ℤ :=
 -- Apply the Laplacian matrix to a firing script, and current divisor to get a new divisor
 def apply_laplacian (G : CFGraph V) (σ : firing_script V) (D: CFDiv V) : CFDiv V :=
   fun v => (D v) - (laplacian_matrix G).mulVec σ v
-
--- Degree of a divisor
-def deg (D : CFDiv V) : ℤ := ∑ v, D v
 
 -- Define q-reduced divisors
 def q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) : Prop :=
