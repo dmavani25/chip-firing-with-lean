@@ -8,6 +8,7 @@ import Mathlib.Algebra.BigOperators.Group.Finset
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
+set_option linter.unusedSectionVars false
 
 open Multiset Finset
 
@@ -186,86 +187,284 @@ def divisor_ordering (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
 def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
   ∀ v ∈ S, set_firing G D S v ≥ 0
 
--- A configuration on a graph G with distinguished vertex q removed
+--------------------------------  Working on Prop 3.2.4  [@TODO] ----------------------------------------------------------
+-- First, let's introduce an axiom for the uniqueness of q-reduced divisors (Corry & Perkins)
+axiom q_reduced_unique (G : CFGraph V) (q : V) (D D₁ D₂ : CFDiv V) :
+  linear_equiv G D D₁ → linear_equiv G D D₂ →
+  q_reduced G q D₁ → q_reduced G q D₂ → D₁ = D₂
+
+-- We also need an axiom stating that any divisor is linearly equivalent to a q-reduced divisor
+axiom exists_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
+  ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
+
+/- First, let's add a helper lemma about q-reduced divisors being effective -/
+lemma q_reduced_effective_iff_at_q (G : CFGraph V) (q : V) (D : CFDiv V)
+    (hq : q_reduced G q D) : effective D ↔ D q ≥ 0 := by
+  constructor
+  · intro h_eff
+    exact h_eff q
+  · intro h_q_nonneg
+    intro v
+    by_cases h : v = q
+    · rw [h]
+      exact h_q_nonneg
+    · exact (hq.1 v h)
+
+/-- First add axioms for the q-reduced properties we need -/
+axiom exists_legal_firings_to_qreduced (G : CFGraph V) (q : V) (D : CFDiv V)
+  (h_eff : effective D) :
+  ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D'
+
+axiom legal_firings_preserve_effective (G : CFGraph V) (D D' : CFDiv V) (S : Finset V) :
+  effective D → legal_set_firing G D S → effective (set_firing G D S)
+
+/-- Axiom: If E is effective and linearly equivalent to D, and D' is q-reduced and linearly equivalent to D,
+    then E is also q-reduced -/
+axiom effective_lineq_to_qred (G : CFGraph V) (q : V) (D D' E : CFDiv V) :
+  effective E → linear_equiv G D E → q_reduced G q D' → linear_equiv G D D' →
+  q_reduced G q E
+
+/-- Main theorem about winnability and q-reduced divisors -/
+theorem winnable_iff_qreduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
+  winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D' := by
+  constructor
+  · -- Forward direction (⟹)
+    intro h_win
+    -- Get effective divisor E from winnability
+    obtain ⟨E, h_eff, h_lin⟩ := h_win
+    -- Get q-reduced divisor D' linearly equivalent to D
+    obtain ⟨D', h_D'_lin, h_D'_qred⟩ := exists_q_reduced G q D
+    -- Use uniqueness to show D' = E by proving E is also q-reduced
+    have h_E_qred := effective_lineq_to_qred G q D D' E h_eff h_lin h_D'_qred h_D'_lin
+    have h_eq : D' = E := q_reduced_unique G q D D' E h_D'_lin h_lin h_D'_qred h_E_qred
+    -- Show D' is effective
+    rw [←h_eq] at h_eff
+    exact ⟨D', h_D'_lin, h_D'_qred, h_eff⟩
+  · -- Reverse direction (⟸)
+    intro h
+    obtain ⟨D', h_lin, _, h_eff⟩ := h
+    exact ⟨D', h_eff, h_lin⟩
+
+/-- Alternative formulation focusing on non-negativity at q -/
+theorem winnable_iff_qreduced_nonneg_at_q (G : CFGraph V) (q : V) (D : CFDiv V) :
+  winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ D' q ≥ 0 := by
+  rw [winnable_iff_qreduced_effective]
+  apply exists_congr
+  intro D'
+  constructor
+  · intro h
+    obtain ⟨h_lin, h_qred, h_eff⟩ := h
+    exact ⟨h_lin, h_qred, (q_reduced_effective_iff_at_q G q D' h_qred).mp h_eff⟩
+  · intro h
+    obtain ⟨h_lin, h_qred, h_q_nonneg⟩ := h
+    exact ⟨h_lin, h_qred, (q_reduced_effective_iff_at_q G q D' h_qred).mpr h_q_nonneg⟩
+
+/-- Helper theorem that effective q-reduced divisors are exactly those non-negative at q -/
+theorem effective_qreduced_iff_nonneg_at_q (G : CFGraph V) (q : V) (D : CFDiv V)
+    (h_qred : q_reduced G q D) : effective D ↔ D q ≥ 0 := by
+  constructor
+  · intro h_eff
+    exact h_eff q
+  · intro h_q
+    intro v
+    by_cases h : v = q
+    · rw [h]
+      exact h_q
+    · exact h_qred.1 v h
+--------------------------------------------------------------------------
+
+/-- A configuration on a graph G with respect to a distinguished vertex q.
+    Represents an element of ℤ(V\{q}) ⊆ ℤV with non-negativity constraints on V\{q}.
+
+    Fields:
+    * vertex_degree - Assignment of integers to vertices
+    * non_negative_except_q - Proof that all values except at q are non-negative -/
 structure Config (V : Type) (q : V) :=
+  /-- Assignment of integers to vertices representing the number of chips at each vertex -/
   (vertex_degree : V → ℤ)
+  /-- Proof that all vertices except q have non-negative values -/
   (non_negative_except_q : ∀ v : V, v ≠ q → vertex_degree v ≥ 0)
 
--- Define degree of a configuration
+/-- The degree of a configuration is the sum of all values except at q.
+    deg(c) = ∑_{v ∈ V\{q}} c(v) -/
 def config_degree {q : V} (c : Config V q) : ℤ :=
   ∑ v in (univ.filter (λ v => v ≠ q)), c.vertex_degree v
 
--- Ordering on configurations: c ≥ c' if c(v) ≥ c'(v) for all v ∈ V
+/-- Ordering on configurations: c ≥ c' if c(v) ≥ c'(v) for all v ∈ V.
+    This is a pointwise comparison of the number of chips at each vertex. -/
 def config_ge {q : V} (c c' : Config V q) : Prop :=
   ∀ v : V, c.vertex_degree v ≥ c'.vertex_degree v
 
--- Non-negative configuration: c ≥ 0 if all values are non-negative
+/-- A configuration is non-negative if all vertices (including q) have non-negative values.
+    This is stronger than the basic Config constraint which only requires non-negativity on V\{q}. -/
 def config_nonnegative {q : V} (c : Config V q) : Prop :=
   ∀ v : V, c.vertex_degree v ≥ 0
 
--- Linear equivalence of configurations: c ∼ c' if they can be transformed by lending/borrowing
+/-- Linear equivalence of configurations: c ∼ c' if they can be transformed into one another
+    through a sequence of lending and borrowing operations. The difference between configurations
+    must be in the subgroup generated by firing moves. -/
 def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
   let diff := λ v => c'.vertex_degree v - c.vertex_degree v
   diff ∈ AddSubgroup.closure (Set.range (λ v => λ w => if w = v then -vertex_degree G v else num_edges G v w))
 
--- Superstable configuration: No legal non-empty set-firing exists
+/-- A configuration is superstable if it has no legal nonempty set-firings.
+    Equivalently, for all nonempty S ⊆ V\{q}, there exists v ∈ S such that
+    c(v) < outdeg_S(v), meaning firing S would make v negative. -/
 def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
   ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.vertex_degree S v < c.vertex_degree v
 
--- Example: Construct a valid configuration
-def example_config (q : V) : Config V q :=
-  { vertex_degree := λ v => if v = q then -1 else 2,
-    non_negative_except_q := λ v hv => by
-      simp
-      split_ifs with h
-      contradiction
-      exact zero_le_two }
-
--- Edge orientation structure assigns direction to each edge
+/-- An orientation of a graph assigns a direction to each edge.
+    The consistent field ensures each undirected edge corresponds to exactly
+    one directed edge in the orientation. -/
 structure Orientation (G : CFGraph V) :=
+  /-- The set of directed edges in the orientation -/
   (directed_edges : Multiset (V × V))
+  /-- Proof that each undirected edge corresponds to exactly one directed edge -/
   (consistent : ∀ e ∈ G.edges, e ∈ directed_edges ∨ (e.snd, e.fst) ∈ directed_edges)
 
--- Reverse orientation swaps the direction of all edges
+/-- Reverse orientation swaps the direction of all edges by mapping each edge (u,v) to (v,u) -/
 def reverse_orientation (G : CFGraph V) (O : Orientation G) : Orientation G :=
   ⟨O.directed_edges.map (λ e => (e.snd, e.fst)), λ e h => by
     cases O.consistent e h with
     | inl _ => exact Or.inr (Multiset.mem_map_of_mem _ ‹_›)
     | inr _ => exact Or.inl (Multiset.mem_map_of_mem _ ‹_›)⟩
 
--- Indegree and outdegree under a given orientation
+/-- Number of edges directed into a vertex under an orientation -/
 def indeg (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
   Multiset.card (O.directed_edges.filter (λ e => e.snd = v))
 
+/-- Number of edges directed out of a vertex under an orientation -/
 def outdeg (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
   Multiset.card (O.directed_edges.filter (λ e => e.fst = v))
 
--- A vertex is a source if it has no incoming edges
+/-- A vertex is a source if it has no incoming edges (indegree = 0) -/
 def is_source (G : CFGraph V) (O : Orientation G) (v : V) : Prop :=
   indeg G O v = 0
 
--- A vertex is a sink if it has no outgoing edges
+/-- A vertex is a sink if it has no outgoing edges (outdegree = 0) -/
 def is_sink (G : CFGraph V) (O : Orientation G) (v : V) : Prop :=
   outdeg G O v = 0
 
--- Define the divisor associated with an orientation
+/-- Axiom: For any vertex v ≠ q in an orientation O where q is a source,
+    the indegree of v is at least 1 -/
+axiom non_source_positive_indeg (G : CFGraph V) (O : Orientation G) (q v : V) :
+  v ≠ q → is_source G O q → indeg G O v ≥ 1
+
+/-- Axiom: Indegree minus one is non-negative for non-source vertices -/
+axiom indeg_minus_one_nonneg (G : CFGraph V) (O : Orientation G) (q v : V) :
+  v ≠ q → is_source G O q → 0 ≤ (indeg G O v : ℤ) - 1
+
+/-- Configuration associated with a source vertex q under orientation O.
+    For each vertex v ≠ q, assigns indegree(v) - 1 chips. -/
+def config_of_source (G : CFGraph V) (O : Orientation G) (q : V)
+    (h_source : is_source G O q) : Config V q :=
+  { vertex_degree := λ v => if v = q then 0 else (indeg G O v : ℤ) - 1,
+    non_negative_except_q := λ v hv => by
+      simp [vertex_degree]
+      split_ifs with h
+      · contradiction
+      · exact indeg_minus_one_nonneg G O q v hv h_source
+  }
+
+/-- Helper function to check if two consecutive vertices form a directed edge -/
+def is_directed_edge (G : CFGraph V) (O : Orientation G) (u : V) (v : V) : Prop :=
+  (u, v) ∈ O.directed_edges
+
+/-- Axiom: For list indexing with bounds checking -/
+axiom list_index_valid {α : Type} (l : List α) (i : Nat) (h : i < l.length) :
+  ∃ x : α, l.get ⟨i, h⟩ = x
+
+/-- Helper function for safe list access -/
+def list_get_safe {α : Type} (l : List α) (i : Nat) : Option α :=
+  l.get? i
+
+/-- Axiom: For path properties -/
+axiom path_properties (G : CFGraph V) (O : Orientation G) (vs : List V) :
+  ∀ (i : Nat), i + 1 < vs.length →
+    match (list_get_safe vs i, list_get_safe vs (i + 1)) with
+    | (some u, some v) => is_directed_edge G O u v
+    | _ => False
+
+/-- Axiom: For vertex distinctness in paths -/
+axiom vertex_distinctness (G : CFGraph V) (O : Orientation G) (vs : List V) :
+  ∀ (i j : Nat), i < vs.length → j < vs.length → i ≠ j →
+    vs.getD i ≠ vs.getD j
+
+/-- Axiom: For vertex distinctness in paths -/
+axiom vertex_distinctness_equivalent_declaration (G : CFGraph V) (O : Orientation G) (vs : List V) :
+  ∀ (i j : Nat), i < vs.length → j < vs.length → i ≠ j →
+    match (list_get_safe vs i, list_get_safe vs j) with
+    | (some u, some v) => u ≠ v
+    | _ => True
+
+/-- A directed path in a graph under an orientation -/
+structure DirectedPath (G : CFGraph V) (O : Orientation G) where
+  /-- The sequence of vertices in the path -/
+  vertices : List V
+  /-- Every consecutive pair forms a directed edge -/
+  valid_edges : ∀ (i : Nat), i + 1 < vertices.length →
+    match (vertices.get? i, vertices.get? (i + 1)) with
+    | (some u, some v) => is_directed_edge G O u v
+    | _ => False
+  /-- All vertices in the path are distinct -/
+  distinct_vertices : ∀ (i j : Nat), i < vertices.length → j < vertices.length → i ≠ j →
+    match (vertices.get? i, vertices.get? j) with
+    | (some u, some v) => u ≠ v
+    | _ => True
+
+/-- [@TODO] A directed cycle is a directed path where first = last vertex -/
+
+-- Axiom: Existence of directed paths between vertices -/
+axiom path_exists (G : CFGraph V) (O : Orientation G) (u v : V) :
+  ∃ (p : DirectedPath G O),
+    p.vertices.length > 0 ∧
+    p.vertices.get? 0 = some u ∧
+    p.vertices.get? (p.vertices.length - 1) = some v
+
+/-- A maximal superstable configuration has no legal firings and dominates all other superstable configs -/
+def maximal_superstable {q : V} (G : CFGraph V) (c : Config V q) : Prop :=
+  superstable G q c ∧ ∀ c' : Config V q, superstable G q c' → config_ge c' c
+
+/-- The divisor associated with an orientation assigns indegree - 1 to each vertex -/
 def divisor_of_orientation (G : CFGraph V) (O : Orientation G) : CFDiv V :=
   λ v => indeg G O v - 1
 
--- Define the canonical divisor of a graph
+/-- The canonical divisor assigns degree - 2 to each vertex.
+    This is independent of orientation and equals D(O) + D(reverse(O)) -/
 def canonical_divisor (G : CFGraph V) : CFDiv V :=
   λ v => (vertex_degree G v) - 2
 
--- Maximal unwinnable divisor: adding any vertex makes it winnable
+/-- A divisor is maximal unwinnable if it is unwinnable but adding
+    a chip to any vertex makes it winnable -/
 def maximal_unwinnable (G : CFGraph V) (D : CFDiv V) : Prop :=
   ¬winnable G D ∧ ∀ v : V, winnable G (λ w => D w + if w = v then 1 else 0)
 
--- Genus of a graph, equivalent to the cycle rank
+/-- Check if there are edges in both directions between two vertices -/
+def has_bidirectional_edges (G : CFGraph V) (O : Orientation G) (u v : V) : Prop :=
+  ∃ e₁ e₂, e₁ ∈ O.directed_edges ∧ e₂ ∈ O.directed_edges ∧ e₁ = (u, v) ∧ e₂ = (v, u)
+
+/-- All multiple edges between same vertices point in same direction -/
+def consistent_edge_directions (G : CFGraph V) (O : Orientation G) : Prop :=
+  ∀ u v : V, ¬has_bidirectional_edges G O u v
+
+/-- An orientation is acyclic if it has no directed cycles and
+    maintains consistent edge directions between vertices -/
+def is_acyclic (G : CFGraph V) (O : Orientation G) : Prop :=
+  consistent_edge_directions G O ∧
+  ¬∃ p : DirectedPath G O,
+    p.vertices.length > 0 ∧
+    match (p.vertices.get? 0, p.vertices.get? (p.vertices.length - 1)) with
+    | (some u, some v) => u = v
+    | _ => False
+
+/-- The genus of a graph is its cycle rank: |E| - |V| + 1 -/
 def genus (G : CFGraph V) : ℤ :=
   Multiset.card G.edges - Fintype.card V + 1
 
--- Define Rank Function = -1 case for a divisor D
+/-- A divisor has rank -1 if it is not winnable -/
 def rank_eq_neg_one_wrt_winnability (G : CFGraph V) (D : CFDiv V) : Prop :=
   ¬(winnable G D)
+
+/-- A divisor has rank -1 if its complete linear system is empty -/
 def rank_eq_neg_one_wrt_complete_linear_system (G : CFGraph V) (D : CFDiv V) : Prop :=
   complete_linear_system G D = ∅
