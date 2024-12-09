@@ -15,18 +15,19 @@ open Multiset Finset
 -- Assume V is a finite type with decidable equality
 variable {V : Type} [DecidableEq V] [Fintype V]
 
--- Define a loop as an edge with the same vertex at both ends
-def isLoop (e : V × V) : Bool :=
-  e.1 = e.2
-
 -- Define a set of edges to be loopless only if it doesn't have loops
 def isLoopless (edges : Multiset (V × V)) : Bool :=
-  Multiset.card (edges.filter (λ e => (isLoop e))) = 0
+  Multiset.card (edges.filter (λ e => (e.1 = e.2))) = 0
+
+-- Define a set of edges to be undirected only if it doesn't have both (v, w) and (w, v)
+def isUndirected (edges : Multiset (V × V)) : Bool :=
+  Multiset.card (edges.filter (λ e => (e.2, e.1) ∈ edges)) = 0
 
 -- Multigraph with undirected and loopless edges
 structure CFGraph (V : Type) [DecidableEq V] [Fintype V] :=
   (edges : Multiset (V × V))
   (loopless : isLoopless edges = true)
+  (undirected: isUndirected edges = true)
 
 -- Divisor as a function from vertices to integers
 def CFDiv (V : Type) := V → ℤ
@@ -187,92 +188,6 @@ def divisor_ordering (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
 def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
   ∀ v ∈ S, set_firing G D S v ≥ 0
 
---------------------------------  Working on Prop 3.2.4  [@TODO] ----------------------------------------------------------
--- First, let's introduce an axiom for the uniqueness of q-reduced divisors (Corry & Perkins)
-axiom q_reduced_unique (G : CFGraph V) (q : V) (D D₁ D₂ : CFDiv V) :
-  linear_equiv G D D₁ → linear_equiv G D D₂ →
-  q_reduced G q D₁ → q_reduced G q D₂ → D₁ = D₂
-
--- We also need an axiom stating that any divisor is linearly equivalent to a q-reduced divisor
-axiom exists_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
-  ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
-
-/- First, let's add a helper lemma about q-reduced divisors being effective -/
-lemma q_reduced_effective_iff_at_q (G : CFGraph V) (q : V) (D : CFDiv V)
-    (hq : q_reduced G q D) : effective D ↔ D q ≥ 0 := by
-  constructor
-  · intro h_eff
-    exact h_eff q
-  · intro h_q_nonneg
-    intro v
-    by_cases h : v = q
-    · rw [h]
-      exact h_q_nonneg
-    · exact (hq.1 v h)
-
-/-- First add axioms for the q-reduced properties we need -/
-axiom exists_legal_firings_to_qreduced (G : CFGraph V) (q : V) (D : CFDiv V)
-  (h_eff : effective D) :
-  ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D'
-
-axiom legal_firings_preserve_effective (G : CFGraph V) (D D' : CFDiv V) (S : Finset V) :
-  effective D → legal_set_firing G D S → effective (set_firing G D S)
-
-/-- Axiom: If E is effective and linearly equivalent to D, and D' is q-reduced and linearly equivalent to D,
-    then E is also q-reduced -/
-axiom effective_lineq_to_qred (G : CFGraph V) (q : V) (D D' E : CFDiv V) :
-  effective E → linear_equiv G D E → q_reduced G q D' → linear_equiv G D D' →
-  q_reduced G q E
-
-/-- Main theorem about winnability and q-reduced divisors -/
-theorem winnable_iff_qreduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
-  winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D' := by
-  constructor
-  · -- Forward direction (⟹)
-    intro h_win
-    -- Get effective divisor E from winnability
-    obtain ⟨E, h_eff, h_lin⟩ := h_win
-    -- Get q-reduced divisor D' linearly equivalent to D
-    obtain ⟨D', h_D'_lin, h_D'_qred⟩ := exists_q_reduced G q D
-    -- Use uniqueness to show D' = E by proving E is also q-reduced
-    have h_E_qred := effective_lineq_to_qred G q D D' E h_eff h_lin h_D'_qred h_D'_lin
-    have h_eq : D' = E := q_reduced_unique G q D D' E h_D'_lin h_lin h_D'_qred h_E_qred
-    -- Show D' is effective
-    rw [←h_eq] at h_eff
-    exact ⟨D', h_D'_lin, h_D'_qred, h_eff⟩
-  · -- Reverse direction (⟸)
-    intro h
-    obtain ⟨D', h_lin, _, h_eff⟩ := h
-    exact ⟨D', h_eff, h_lin⟩
-
-/-- Alternative formulation focusing on non-negativity at q -/
-theorem winnable_iff_qreduced_nonneg_at_q (G : CFGraph V) (q : V) (D : CFDiv V) :
-  winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ D' q ≥ 0 := by
-  rw [winnable_iff_qreduced_effective]
-  apply exists_congr
-  intro D'
-  constructor
-  · intro h
-    obtain ⟨h_lin, h_qred, h_eff⟩ := h
-    exact ⟨h_lin, h_qred, (q_reduced_effective_iff_at_q G q D' h_qred).mp h_eff⟩
-  · intro h
-    obtain ⟨h_lin, h_qred, h_q_nonneg⟩ := h
-    exact ⟨h_lin, h_qred, (q_reduced_effective_iff_at_q G q D' h_qred).mpr h_q_nonneg⟩
-
-/-- Helper theorem that effective q-reduced divisors are exactly those non-negative at q -/
-theorem effective_qreduced_iff_nonneg_at_q (G : CFGraph V) (q : V) (D : CFDiv V)
-    (h_qred : q_reduced G q D) : effective D ↔ D q ≥ 0 := by
-  constructor
-  · intro h_eff
-    exact h_eff q
-  · intro h_q
-    intro v
-    by_cases h : v = q
-    · rw [h]
-      exact h_q
-    · exact h_qred.1 v h
---------------------------------------------------------------------------
-
 /-- A configuration on a graph G with respect to a distinguished vertex q.
     Represents an element of ℤ(V\{q}) ⊆ ℤV with non-negativity constraints on V\{q}.
 
@@ -412,7 +327,27 @@ structure DirectedPath (G : CFGraph V) (O : Orientation G) where
     | (some u, some v) => u ≠ v
     | _ => True
 
-/-- [@TODO] A directed cycle is a directed path where first = last vertex -/
+/-- A directed cycle is a directed path whose first and last vertices coincide.
+    Apart from the repetition of the first/last vertex, all other vertices in the cycle are distinct. -/
+structure DirectedCycle (G : CFGraph V) (O : Orientation G) :=
+  (vertices : List V)
+  /-- Every consecutive pair of vertices forms a directed edge in the orientation. -/
+  (valid_edges : ∀ (i : Nat), i + 1 < vertices.length →
+    match (vertices.get? i, vertices.get? (i + 1)) with
+    | (some u, some v) => is_directed_edge G O u v
+    | _ => False)
+  /-- The cycle condition: the first vertex equals the last, ensuring a closed loop. -/
+  (cycle_condition : vertices.length > 0 ∧ vertices.get? 0 = vertices.get? (vertices.length - 1))
+  /-- All internal vertices (ignoring the last vertex which is the same as the first)
+      are distinct from each other. This ensures there are no other repeated vertices
+      besides the repetition at the end forming the cycle. -/
+  (distinct_internal_vertices : ∀ (i j : Nat),
+    i < vertices.length - 1 →
+    j < vertices.length - 1 →
+    i ≠ j →
+    match (vertices.get? i, vertices.get? j) with
+    | (some u, some v) => u ≠ v
+    | _ => True)
 
 -- Axiom: Existence of directed paths between vertices -/
 axiom path_exists (G : CFGraph V) (O : Orientation G) (u v : V) :
