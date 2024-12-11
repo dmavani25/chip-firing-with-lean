@@ -13,33 +13,46 @@ variable {V : Type} [DecidableEq V] [Fintype V]
 /--
 theorem sum_vertex_degrees (G : CFGraph V) :
   ∑ v, vertex_degree G v = 2 * ↑(Multiset.card G.edges) := by
-  -- Unfold definitions
   unfold vertex_degree
 
-  -- Convert the sum
-  have h1 : ∑ v, ↑(Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))) =
-           2 * ↑(Multiset.card G.edges) := by
-    -- Convert natural numbers to integers
-    simp only [Nat.cast_sum, Nat.cast_mul]
+  -- For each edge e, count how many times it appears in each vertex's filter (Working)
+  have h_count : ∀ e ∈ G.edges,
+    (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card = 2 := by
+    intro e he
+    -- Prove endpoints are distinct using loopless property (Working)
+    have h_ne : e.1 ≠ e.2 := by
+      by_contra h
+      have : isLoopless G.edges = true := G.loopless
+      unfold isLoopless at this
+      have h_loop : Multiset.card (G.edges.filter (λ e => e.1 = e.2)) = 0 := by
+        simp only [decide_eq_true_eq] at this
+        exact this
+      have h_mem : e ∈ Multiset.filter (λ e' => e'.1 = e'.2) G.edges := by
+        simp [he, h]
+      have h_card : 0 < Multiset.card (G.edges.filter (λ e' => e'.1 = e'.2)) := by
+        exact Multiset.card_pos_iff_exists_mem.mpr ⟨e, h_mem⟩
+      exact h_card.ne' h_loop
 
-    -- Show edge counting correspondence
-    have h_count : ∀ e ∈ G.edges,
-      (Finset.univ.filter (λ v => e.fst = v ∨ e.snd = v)).card = 2 := by
-      intro e he
-      simp [G.loopless]
-      split
-      . exact dec_trivial
-      . rfl
+    -- Show filter contains exactly two vertices (Working)
+    rw [Finset.card_eq_two]
+    exists e.1
+    exists e.2
+    constructor
+    · exact h_ne
+    · ext v
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_insert,
+                Finset.mem_singleton]
+      constructor
+      · intro h
+        cases h with
+        | inl h => exact Or.inl (Eq.symm h)
+        | inr h => exact Or.inr (Eq.symm h)
+      · intro h
+        cases h with
+        | inl h => exact Or.inl (Eq.symm h)
+        | inr h => exact Or.inr (Eq.symm h)
 
-    -- Convert counts to integers and sum
-    have h_sum : ∑ v, (Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))) =
-                 2 * Multiset.card G.edges := by
-      exact Nat.cast_inj.mp (by exact h_count)
-
-    exact h_sum
-
-  -- Apply the equality
-  exact h1
+  admit
 -/
 
 axiom sum_vertex_degrees (G : CFGraph V) :
