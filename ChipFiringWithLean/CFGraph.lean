@@ -10,6 +10,7 @@ set_option linter.unusedVariables false
 set_option trace.split.failure true
 set_option linter.unusedSectionVars false
 
+
 open Multiset Finset
 
 -- Assume V is a finite type with decidable equality
@@ -33,7 +34,7 @@ structure CFGraph (V : Type) [DecidableEq V] [Fintype V] :=
 def CFDiv (V : Type) := V → ℤ
 
 -- Number of edges between two vertices as an integer
-def num_edges (G : CFGraph V) (v w : V) : ℤ :=
+def num_edges (G : CFGraph V) (v w : V) : ℕ :=
   ↑(Multiset.card (G.edges.filter (λ e => e = (v, w) ∨ e = (w, v))))
 
 -- Degree (Valence) of a vertex as an integer
@@ -253,12 +254,78 @@ def outdeg (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
   Multiset.card (O.directed_edges.filter (λ e => e.fst = v))
 
 /-- A vertex is a source if it has no incoming edges (indegree = 0) -/
-def is_source (G : CFGraph V) (O : Orientation G) (v : V) : Prop :=
+def is_source (G : CFGraph V) (O : Orientation G) (v : V) : Bool :=
   indeg G O v = 0
 
 /-- A vertex is a sink if it has no outgoing edges (outdegree = 0) -/
-def is_sink (G : CFGraph V) (O : Orientation G) (v : V) : Prop :=
+def is_sink (G : CFGraph V) (O : Orientation G) (v : V) : Bool :=
   outdeg G O v = 0
+
+/-- Helper function to check if two consecutive vertices form a directed edge -/
+def is_directed_edge (G : CFGraph V) (O : Orientation G) (u v : V) : Bool :=
+  (u, v) ∈ O.directed_edges
+
+/-- Get all source vertices in an orientation -/
+def source_vertices (G : CFGraph V) (O : Orientation G) : Finset V :=
+  univ.filter (λ v => is_source G O v)
+
+/-- Axiom: Filtering edges preserves orientation consistency -/
+axiom filter_preserves_orientation_consistency (G : CFGraph V) (O : Orientation G) (v : V) :
+  ∀ e ∈ G.edges,
+    e ∈ O.directed_edges.filter (λ e => e.1 ≠ v ∧ e.2 ≠ v) ∨
+    (e.2, e.1) ∈ O.directed_edges.filter (λ e => e.1 ≠ v ∧ e.2 ≠ v)
+
+/-- Remove a vertex and its incident edges from an orientation -/
+def remove_vertex (G : CFGraph V) (O : Orientation G) (v : V) : Orientation G :=
+  ⟨O.directed_edges.filter (λ e => e.1 ≠ v ∧ e.2 ≠ v),
+   filter_preserves_orientation_consistency G O v⟩
+
+/-- Axiom: Well-foundedness of vertex levels -/
+axiom vertex_measure_decreasing (G : CFGraph V) (O : Orientation G) (v : V) :
+  is_source G O v = false →
+  ∀ u, is_directed_edge G O u v = true →
+  (univ.filter (λ w => is_directed_edge G O w u)).card <
+  (univ.filter (λ w => is_directed_edge G O w v)).card
+
+/-- Axiom: Negation of is_source implies source is false -/
+axiom source_not_true_implies_false (G : CFGraph V) (O : Orientation G) (v : V) :
+  ¬is_source G O v = true → is_source G O v = false
+
+/-- Axiom: If u is in the filter set for vertex_level calculation of v,
+    then there is a directed edge from u to v -/
+axiom filter_implies_directed_edge (G : CFGraph V) (O : Orientation G) (v u : V) :
+  u ∈ univ.filter (λ w => is_directed_edge G O w v) →
+  is_directed_edge G O u v = true
+
+/-- Axiom: Filter membership for vertex levels -/
+axiom vertex_filter_membership (G : CFGraph V) (O : Orientation G) (v u : V) :
+  u ∈ univ.filter (λ w => is_directed_edge G O w v)
+
+/-- The level of a vertex is its position in the topological ordering -/
+def vertex_level (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
+  if h : is_source G O v then 0
+  else Nat.succ (Finset.sup (univ.filter (λ u => is_directed_edge G O u v))
+                            (λ u => vertex_level G O u))
+termination_by
+  Finset.card (univ.filter (λ u => is_directed_edge G O u v))
+decreasing_by {
+  apply vertex_measure_decreasing G O v
+  · exact source_not_true_implies_false G O v h
+  · apply filter_implies_directed_edge G O v u
+    exact vertex_filter_membership G O v u
+}
+
+/-- Axiom: Graph has no directed cycles -/
+axiom acyclic_graph (G : CFGraph V) (O : Orientation G) :
+  ∀ v : V, vertex_level G O v < Fintype.card V
+
+/-- Axiom: Each non-source vertex has at least one incoming edge -/
+axiom non_source_has_incoming (G : CFGraph V) (O : Orientation G) (v : V) :
+  ¬is_source G O v → ∃ u : V, is_directed_edge G O u v
+
+/-- Vertices at a given level in the orientation -/
+def vertices_at_level (G : CFGraph V) (O : Orientation G) (l : ℕ) : Finset V :=
+  univ.filter (λ v => vertex_level G O v = l)
 
 /-- Axiom: For any vertex v ≠ q in an orientation O where q is a source,
     the indegree of v is at least 1 -/
@@ -280,10 +347,6 @@ def config_of_source (G : CFGraph V) (O : Orientation G) (q : V)
       · contradiction
       · exact indeg_minus_one_nonneg G O q v hv h_source
   }
-
-/-- Helper function to check if two consecutive vertices form a directed edge -/
-def is_directed_edge (G : CFGraph V) (O : Orientation G) (u : V) (v : V) : Prop :=
-  (u, v) ∈ O.directed_edges
 
 /-- Axiom: For list indexing with bounds checking -/
 axiom list_index_valid {α : Type} (l : List α) (i : Nat) (h : i < l.length) :

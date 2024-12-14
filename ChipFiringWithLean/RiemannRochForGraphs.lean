@@ -9,6 +9,105 @@ open Multiset Finset
 -- Assume V is a finite type with decidable equality
 variable {V : Type} [DecidableEq V] [Fintype V]
 
+-- [Proven] Lemma: effectiveness is preserved under legal firing (Additional)
+lemma legal_firing_preserves_effective (G : CFGraph V) (D : CFDiv V) (S : Finset V) :
+  legal_set_firing G D S → effective D → effective (set_firing G D S) := by
+  intros h_legal h_eff v
+  simp [set_firing]
+  by_cases hv : v ∈ S
+  -- Case 1: v ∈ S
+  · exact h_legal v hv
+  -- Case 2: v ∉ S
+  · have h1 : D v ≥ 0 := h_eff v
+    have h2 : finset_sum S (λ v' => if v = v' then -vertex_degree G v' else num_edges G v' v) ≥ 0 := by
+      apply Finset.sum_nonneg
+      intro x hx
+      -- Split on whether v = x
+      by_cases hveq : v = x
+      · -- If v = x, contradiction with v ∉ S
+        rw [hveq] at hv
+        contradiction
+      · -- If v ≠ x, then we get num_edges which is non-negative
+        simp [hveq]
+    linarith
+
+-- Axiom: Every divisor is linearly equivalent to exactly one q-reduced divisor
+axiom helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
+  ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
+
+-- Axiom: Effectiveness preservation under linear equivalence
+axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
+  linear_equiv G D₁ D₂ → effective D₁ → effective D₂
+
+-- Proposition 3.2.4: q-reduced and effective implies winnable
+theorem winnable_iff_q_reduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
+  winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D' := by
+  constructor
+  { -- Forward direction
+    intro h_win
+    rcases h_win with ⟨E, h_eff, h_equiv⟩
+    rcases helper_unique_q_reduced G q D with ⟨D', h_D'⟩
+    use D'
+    constructor
+    · exact h_D'.1.1  -- D is linearly equivalent to D'
+    constructor
+    · exact h_D'.1.2  -- D' is q-reduced
+    · -- Show D' is effective using:
+      -- First get E ~ D' by transitivity through D
+      have h_equiv_symm := (linear_equiv_is_equivalence G).symm h_equiv
+      have h_equiv' := (linear_equiv_is_equivalence G).trans h_equiv_symm h_D'.1.1
+      -- Now use effectiveness preservation under linear equivalence
+      exact helper_effective_linear_equiv G E D' h_equiv' h_eff
+  }
+  { -- Reverse direction
+    intro h
+    rcases h with ⟨D', h_equiv, h_qred, h_eff⟩
+    use D'
+    exact ⟨h_eff, h_equiv⟩
+  }
+
+-- Proposition 3.2.4 (Extension): q-reduced and effective implies winnable
+theorem q_reduced_effective_implies_winnable (G : CFGraph V) (q : V) (D : CFDiv V) :
+  q_reduced G q D → effective D → winnable G D := by
+  intros h_qred h_eff
+  -- Apply right direction of iff
+  rw [winnable_iff_q_reduced_effective]
+  -- Prove existence
+  use D
+  constructor
+  · exact (linear_equiv_is_equivalence G).refl D  -- D is linearly equivalent to itself using proven reflexivity
+  constructor
+  · exact h_qred  -- D is q-reduced
+  · exact h_eff   -- D is effective
+
+/-- Axiom: A non-empty graph with an acyclic orientation must have at least one source -/
+axiom helper_acyclic_has_source (G : CFGraph V) (O : Orientation G) :
+  is_acyclic G O → ∃ v : V, is_source G O v
+
+/-- Axiom: Two orientations are equal if they have same directed edges -/
+axiom helper_orientation_eq_of_directed_edges {G : CFGraph V}
+  (O O' : Orientation G) :
+  O.directed_edges = O'.directed_edges → O = O'
+
+/-- Axiom: Given a list of disjoint vertex sets that form a partition of V,
+    this axiom states that an acyclic orientation is uniquely determined
+    by this partition where each set contains vertices with same indegree -/
+axiom helper_orientation_determined_by_levels {G : CFGraph V}
+  (O O' : Orientation G) :
+  is_acyclic G O → is_acyclic G O' →
+  (∀ v : V, indeg G O v = indeg G O' v) →
+  O = O'
+
+/-- Lemma 4.1.10: An acyclic orientation is uniquely determined by its indegree sequence -/
+theorem acyclic_orientation_unique_by_indeg {G : CFGraph V}
+  (O O' : Orientation G)
+  (h_acyclic : is_acyclic G O)
+  (h_acyclic' : is_acyclic G O')
+  (h_indeg : ∀ v : V, indeg G O v = indeg G O' v) :
+  O = O' := by
+  -- Apply the helper_orientation_determined_by_levels axiom directly
+  exact helper_orientation_determined_by_levels O O' h_acyclic h_acyclic' h_indeg
+
 /-- Axiom: A divisor can be decomposed into parts of specific degrees -/
 axiom helper_divisor_decomposition (G : CFGraph V) (E'' : CFDiv V) (k₁ k₂ : ℕ)
   (h_effective : effective E'') (h_deg : deg E'' = k₁ + k₂) :
@@ -156,79 +255,3 @@ theorem degree_of_canonical_divisor (G : CFGraph V) :
 
   -- Final algebraic simplification
   ring
-
--- Axiom: Non-negativity of edges
-axiom helper_num_edges_nonneg (G : CFGraph V) (v w : V) :
-  num_edges G v w ≥ 0
-
--- [Proven] Lemma: effectiveness is preserved under legal firing (Additional)
-lemma legal_firing_preserves_effective (G : CFGraph V) (D : CFDiv V) (S : Finset V) :
-  legal_set_firing G D S → effective D → effective (set_firing G D S) := by
-  intros h_legal h_eff v
-  simp [set_firing]
-  by_cases hv : v ∈ S
-  -- Case 1: v ∈ S
-  · exact h_legal v hv
-  -- Case 2: v ∉ S
-  · have h1 : D v ≥ 0 := h_eff v
-    have h2 : finset_sum S (λ v' => if v = v' then -vertex_degree G v' else num_edges G v' v) ≥ 0 := by
-      apply Finset.sum_nonneg
-      intro x hx
-      -- Split on whether v = x
-      by_cases hveq : v = x
-      · -- If v = x, contradiction with v ∉ S
-        rw [hveq] at hv
-        contradiction
-      · -- If v ≠ x, then we get num_edges which is non-negative
-        simp [hveq]
-        exact helper_num_edges_nonneg G x v
-    linarith
-
--- Axiom: Every divisor is linearly equivalent to exactly one q-reduced divisor
-axiom helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
-  ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
-
--- Axiom: Effectiveness preservation under linear equivalence
-axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
-  linear_equiv G D₁ D₂ → effective D₁ → effective D₂
-
--- Proposition 3.2.4: q-reduced and effective implies winnable
-theorem winnable_iff_q_reduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
-  winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D' := by
-  constructor
-  { -- Forward direction
-    intro h_win
-    rcases h_win with ⟨E, h_eff, h_equiv⟩
-    rcases helper_unique_q_reduced G q D with ⟨D', h_D'⟩
-    use D'
-    constructor
-    · exact h_D'.1.1  -- D is linearly equivalent to D'
-    constructor
-    · exact h_D'.1.2  -- D' is q-reduced
-    · -- Show D' is effective using:
-      -- First get E ~ D' by transitivity through D
-      have h_equiv_symm := (linear_equiv_is_equivalence G).symm h_equiv
-      have h_equiv' := (linear_equiv_is_equivalence G).trans h_equiv_symm h_D'.1.1
-      -- Now use effectiveness preservation under linear equivalence
-      exact helper_effective_linear_equiv G E D' h_equiv' h_eff
-  }
-  { -- Reverse direction
-    intro h
-    rcases h with ⟨D', h_equiv, h_qred, h_eff⟩
-    use D'
-    exact ⟨h_eff, h_equiv⟩
-  }
-
--- Proposition 3.2.4 (Extension): q-reduced and effective implies winnable
-theorem q_reduced_effective_implies_winnable (G : CFGraph V) (q : V) (D : CFDiv V) :
-  q_reduced G q D → effective D → winnable G D := by
-  intros h_qred h_eff
-  -- Apply right direction of iff
-  rw [winnable_iff_q_reduced_effective]
-  -- Prove existence
-  use D
-  constructor
-  · exact (linear_equiv_is_equivalence G).refl D  -- D is linearly equivalent to itself using proven reflexivity
-  constructor
-  · exact h_qred  -- D is q-reduced
-  · exact h_eff   -- D is effective
