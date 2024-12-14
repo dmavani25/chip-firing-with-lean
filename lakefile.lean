@@ -14,7 +14,6 @@ package "chip-firing-with-lean" where
 
 require "leanprover-community" / "mathlib"
 require Paperproof from git "https://github.com/Paper-Proof/paperproof.git"@"main"/"lean"
-require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.6.0"
 
 @[default_target]
 lean_lib «ChipFiringWithLean» where
