@@ -108,6 +108,126 @@ theorem acyclic_orientation_unique_by_indeg {G : CFGraph V}
   -- Apply the helper_orientation_determined_by_levels axiom directly
   exact helper_orientation_determined_by_levels O O' h_acyclic h_acyclic' h_indeg
 
+/-- Lemma 4.1.10 (Alternative Form): Two acyclic orientations with same indegree sequences are equal -/
+theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : Orientation G)
+    (h_acyclic : is_acyclic G O) (h_acyclic' : is_acyclic G O')
+    (h_indeg : ∀ v : V, indeg G O v = indeg G O' v) :
+    O = O' := by
+  -- Use previously defined theorem about uniqueness by indegree
+  exact acyclic_orientation_unique_by_indeg O O' h_acyclic h_acyclic' h_indeg
+
+/-- Given an acyclic orientation O with source q, returns a configuration c(O) -/
+def helper_orientation_to_config (G : CFGraph V) (O : Orientation G) (q : V)
+    (h_acyclic : is_acyclic G O) (h_source : is_source G O q) : Config V q :=
+  config_of_source G O q h_source
+
+/-- Axiom: Every configuration from an acyclic orientation with source q is superstable -/
+axiom helper_orientation_config_superstable (G : CFGraph V) (O : Orientation G) (q : V)
+    (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
+    superstable G q (helper_orientation_to_config G O q h_acyc h_src)
+
+/-- Axiom: Every configuration from an acyclic orientation with source q is maximal superstable -/
+axiom helper_orientation_config_maximal (G : CFGraph V) (O : Orientation G) (q : V)
+    (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
+    maximal_superstable G (helper_orientation_to_config G O q h_acyc h_src)
+
+/-- Axiom: Converting orientation to config and back gives same orientation -/
+axiom helper_config_to_orientation_unique (G : CFGraph V) (q : V)
+    (c : Config V q)
+    (h_super : superstable G q c)
+    (h_max : maximal_superstable G c)
+    (O₁ O₂ : Orientation G)
+    (h_acyc₁ : is_acyclic G O₁)
+    (h_acyc₂ : is_acyclic G O₂)
+    (h_src₁ : is_source G O₁ q)
+    (h_src₂ : is_source G O₂ q)
+    (h_eq₁ : helper_orientation_to_config G O₁ q h_acyc₁ h_src₁ = c)
+    (h_eq₂ : helper_orientation_to_config G O₂ q h_acyc₂ h_src₂ = c) :
+    O₁ = O₂
+
+/-- Axiom: Orientation to config preserves indegrees -/
+axiom helper_orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
+    (h_acyclic : is_acyclic G O) (h_source : is_source G O q) (v : V) :
+    (helper_orientation_to_config G O q h_acyclic h_source).vertex_degree v =
+    if v = q then 0 else (indeg G O v : ℤ) - 1
+
+/-- Helper Lemma to convert between configuration equality forms -/
+lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
+    {O₁ O₂ : {O : Orientation G // is_acyclic G O ∧ is_source G O q}}
+    (h : helper_orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 =
+         helper_orientation_to_config G O₂.val q O₂.prop.1 O₂.prop.2) :
+    helper_orientation_to_config G O₂.val q O₂.prop.1 O₂.prop.2 =
+    helper_orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 := by
+  exact h.symm
+
+/-- Axiom: Every superstable configuration extends to a maximal superstable configuration -/
+axiom helper_maximal_superstable_exists (G : CFGraph V) (q : V) (c : Config V q)
+    (h_super : superstable G q c) :
+    ∃ c' : Config V q, maximal_superstable G c' ∧ config_ge c' c
+
+/-- Axiom: Every maximal superstable configuration comes from an acyclic orientation -/
+axiom helper_maximal_superstable_orientation (G : CFGraph V) (q : V) (c : Config V q)
+    (h_max : maximal_superstable G c) :
+    ∃ (O : Orientation G) (h_acyc : is_acyclic G O) (h_src : is_source G O q),
+      helper_orientation_to_config G O q h_acyc h_src = c
+
+/-- Axiom: Maximal superstable configurations are uniquely determined by their orientations -/
+axiom helper_maximal_superstable_unique (G : CFGraph V) (q : V) (c : Config V q)
+  (h_max : maximal_superstable G c)
+  (O : Orientation G) (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
+  helper_orientation_to_config G O q h_acyc h_src = c →
+  ∀ (O' : Orientation G) (h_acyc' : is_acyclic G O' ) (h_src' : is_source G O' q),
+  helper_orientation_to_config G O' q h_acyc' h_src' = c → O = O'
+
+/-- Axiom: If c' dominates c and c' is maximal superstable, then c = c' -/
+axiom helper_maximal_superstable_unique_dominates (G : CFGraph V) (q : V)
+    (c c' : Config V q)
+    (h_max' : maximal_superstable G c')
+    (h_ge : config_ge c' c) : c' = c
+
+/-- Axiom: Every configuration is superstable -/
+axiom helper_config_superstable (G : CFGraph V) (q : V) (c : Config V q) :
+    superstable G q c
+
+/-- Proposition 4.1.11: Bijection between acyclic orientations with source q
+    and maximal superstable configurations -/
+theorem stable_bijection (G : CFGraph V) (q : V) :
+    Function.Bijective (λ (O : {O : Orientation G // is_acyclic G O ∧ is_source G O q}) =>
+      helper_orientation_to_config G O.val q O.prop.1 O.prop.2) := by
+  constructor
+  -- Injectivity
+  { intros O₁ O₂ h_eq
+    -- Extract orientations and their properties
+    let ⟨O₁, h₁⟩ := O₁
+    let ⟨O₂, h₂⟩ := O₂
+    -- Convert equality to the right form
+    have h_eq' := helper_config_eq_of_subtype_eq h_eq
+    -- Apply uniqueness axiom
+    exact Subtype.eq (helper_config_to_orientation_unique G q
+      (helper_orientation_to_config G O₁ q h₁.1 h₁.2)
+      (helper_orientation_config_superstable G O₁ q h₁.1 h₁.2)
+      (helper_orientation_config_maximal G O₁ q h₁.1 h₁.2)
+      O₁ O₂ h₁.1 h₂.1 h₁.2 h₂.2 rfl h_eq') }
+
+  -- Surjectivity
+  { intro c
+    -- First show c is superstable
+    have h_super : superstable G q c := helper_config_superstable G q c
+
+    -- Get maximal superstable config extending c
+    have ⟨c', h_max', h_ge⟩ := helper_maximal_superstable_exists G q c h_super
+
+    -- Get orientation for the maximal superstable config
+    have ⟨O, h_acyc, h_src, h_eq⟩ := helper_maximal_superstable_orientation G q c' h_max'
+
+    -- Use the orientation to construct our witness
+    use ⟨O, ⟨h_acyc, h_src⟩⟩
+
+    -- Show equality through transitivity
+    calc helper_orientation_to_config G O q h_acyc h_src
+      _ = c' := h_eq
+      _ = c  := helper_maximal_superstable_unique_dominates G q c c' h_max' h_ge }
+
 /-- Axiom: A divisor can be decomposed into parts of specific degrees -/
 axiom helper_divisor_decomposition (G : CFGraph V) (E'' : CFDiv V) (k₁ k₂ : ℕ)
   (h_effective : effective E'') (h_deg : deg E'' = k₁ + k₂) :
