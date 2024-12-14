@@ -432,6 +432,10 @@ def divisor_of_orientation (G : CFGraph V) (O : Orientation G) : CFDiv V :=
 def canonical_divisor (G : CFGraph V) : CFDiv V :=
   λ v => (vertex_degree G v) - 2
 
+/-- Definition of maximal winnable divisor -/
+def maximal_winnable (G : CFGraph V) (D : CFDiv V) : Prop :=
+  winnable G D ∧ ∀ v : V, ¬winnable G (λ w => D w + if w = v then 1 else 0)
+
 /-- A divisor is maximal unwinnable if it is unwinnable but adding
     a chip to any vertex makes it winnable -/
 def maximal_unwinnable (G : CFGraph V) (D : CFDiv V) : Prop :=
@@ -454,6 +458,11 @@ def is_acyclic (G : CFGraph V) (O : Orientation G) : Prop :=
     match (p.vertices.get? 0, p.vertices.get? (p.vertices.length - 1)) with
     | (some u, some v) => u = v
     | _ => False
+
+/-- Given an acyclic orientation O with source q, returns a configuration c(O) -/
+def orientation_to_config (G : CFGraph V) (O : Orientation G) (q : V)
+    (h_acyclic : is_acyclic G O) (h_source : is_source G O q) : Config V q :=
+  config_of_source G O q h_source
 
 /-- The genus of a graph is its cycle rank: |E| - |V| + 1 -/
 def genus (G : CFGraph V) : ℤ :=
