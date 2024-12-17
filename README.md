@@ -4,81 +4,129 @@ A formalization of chip-firing games and the Riemann-Roch theorem for graphs usi
 
 ## Overview
 
-This project provides a formal mathematical framework for studying chip-firing games on graphs and proves important results including the Riemann-Roch theorem for graphs. The codebase is structured into several key modules:
+This project provides a formal mathematical framework for studying **chip-firing games on graphs** and proves key results, including the **Riemann-Roch theorem for graphs**. The implementation leverages Lean 4 for formal proofs and structured reasoning.
 
-- `Basic`: Core definitions and basic utilities
-- `CFGraph`: Main chip-firing graph definitions and operations
-- `CFGraphExample`: Example graphs and chip-firing scenarios
-- `Helpers`: Helper functions and lemmas
-- `RRGHelpers`: Helpers specific to Riemann-Roch theorem proofs
-- `RiemannRochForGraphs`: Formalization of the Riemann-Roch theorem for graphs
+The codebase is modular, with the following key components:
+
+- **`Basic`**: Core definitions and utilities for `CFGraph` and structures related to divisors.
+- **`CFGraphExample`**: Example graphs and chip-firing scenarios to verify functionality.
+- **`Config`**: Definitions and operations involving configurations on `CFGraph`s.
+- **`Orientation`**: Definitions and utilities for orientations on `CFGraph`s.
+- **`Rank`**: Rank functions and related structures for divisors.
+- **`Helpers`**: Auxiliary lemmas, theorems, and propositions supporting other modules.
+- **`RRGHelpers`**: Specific lemmas and results used in proving the **Riemann-Roch theorem**.
+- **`RiemannRochForGraphs`**: The **main** formalization of the Riemann-Roch theorem for graphs.
 
 ## Requirements
 
-- Lean 4
-- Lake build tool
-- Required dependencies:
-  - `mathlib4`: Mathematical library for Lean 4
-  - `Paperproof`: For proof visualization
-  - Other dependencies managed via Lake
+To run and explore the project, you will need the following:
+
+- **Lean 4**
+- **Lake**: Lean 4's build tool
+- Required dependencies (managed via `lakefile.lean`):
+  - [mathlib4](https://github.com/leanprover-community/mathlib4): Core mathematical library for Lean 4
+  - **Paperproof**: (Optional) proof visualization tool
 
 ## Project Structure
 
 ```
 .
 ├── ChipFiringWithLean/
-│   ├── Basic.lean         
-│   ├── CFGraph.lean       # Core chip-firing implementations
-│   ├── CFGraphExample.lean # Example graphs and scenarios
-│   ├── Helpers.lean       # General helper functions
-│   ├── RRGHelpers.lean    # Riemann-Roch specific helpers
-│   └── RiemannRochForGraphs.lean # Main theorem proofs
-├── lakefile.lean       # Build configuration
-└── README.md
+│   ├── Basic.lean              # Core chip-firing definitions
+│   ├── CFGraph.lean            # CFGraph implementation
+│   ├── CFGraphExample.lean     # Example graphs and configurations
+│   ├── Config.lean             # Configuration-related structures
+│   ├── Orientation.lean        # Orientation-related structures
+│   ├── Rank.lean               # Rank of divisors definitions
+│   ├── Helpers.lean            # General helper theorems and lemmas
+│   ├── RRGHelpers.lean         # Helper results for Riemann-Roch
+│   └── RiemannRochForGraphs.lean # Formal proof of Riemann-Roch theorem
+├── lakefile.lean               # Build and dependency management
+└── README.md                   # Project documentation
 ```
 
 ## Features
 
-- Formal definitions of graphs and chip configurations
-- Implementation of chip-firing moves and rules
-- Example scenarios with borrowing and lending
-- Proofs of key theorems including Riemann-Roch
-- Visualization support through Paperproof integration
+- **Graph Formalization**: Provides formal definitions of graphs and chip configurations.
+- **Chip-Firing Mechanics**: Models chip-firing moves and associated game rules.
+- **Example Scenarios**: Includes concrete examples for validation and testing.
+- **Riemann-Roch Theorem**: Formalizes and proves the Riemann-Roch theorem for graphs.
+- **Helper Libraries**: Offers reusable lemmas and tools for related graph-theoretical work.
+- **Visualization**: Optional integration with Paperproof for better visualization of proofs.
 
 ## Installation
 
-1. Install Lean 4 and Lake following the [official instructions](https://leanprover.github.io/lean4/doc/setup.html)
+1. **Install Lean 4 and Lake**:
+   Follow the [Lean 4 installation guide](https://leanprover.github.io/lean4/doc/setup.html).
 
-2. Clone this repository:
-```sh
-git clone https://github.com/yourusername/chip-firing-with-lean.git
-cd chip-firing-with-lean
-```
+2. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/yourusername/chip-firing-with-lean.git
+   cd chip-firing-with-lean
+   ```
 
-3. Build the project using lake (Lean4 official package manager):
-```sh
-lake build
-```
+3. **Build the Project**:
+   Use the Lake build tool to compile and set up dependencies.
+   ```bash
+   lake build
+   ```
 
-## Development
+4. **Verify Setup**:
+   Run the Lean files to ensure everything is working:
+   ```bash
+   lake exe lean
+   ```
 
-The project uses lake for build management. Common commands are as follows:
+## Development Workflow
 
-```sh
-lake build        # Build the project
-lake clean        # Clean build artifacts
-lake exe lean     # Run the Lean executable
-```
-
-## License
-
-MIT License
+- Build the project:
+  ```bash
+  lake build
+  ```
+- Clean build artifacts:
+  ```bash
+  lake clean
+  ```
+- Open Lean files in an IDE like VS Code (recommended with Lean 4 extension).
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests with improvements to proofs, documentation, or new features.
+Contributions are highly welcome! Here are a few ways to contribute:
+
+1. **Bug Fixes**: Submit pull requests for any bugs or issues you identify.
+2. **New Features**: Add modules, lemmas, or optimizations related to chip-firing or graph theory.
+3. **Documentation**: Improve clarity, examples, or explanations in the documentation.
+4. **Testing**: Add more example graphs or scenarios to test edge cases.
+
+Please ensure your contributions follow best practices and include detailed comments.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ## References
 
-- [Lean4 Documentation](https://leanprover.github.io/lean4/doc/)
-- [Mathlib4 Documentation](https://leanprover-community.github.io/mathlib4_docs/)
+### Software
+- [Lean 4 Documentation](https://leanprover.github.io/lean4/doc/)
+- [mathlib4 Documentation](https://leanprover-community.github.io/mathlib4_docs/)
+
+### Papers
+- M. Baker and S. Norine, *Riemann-Roch and Abel-Jacobi theory on a finite graph*, Advances in Mathematics, 215 (2007), 766–788.
+- S. Corry and D. Perkinson, *Divisors and Sandpiles: An Introduction to Chip-Firing*, American Mathematical Society, Providence, Rhode Island. 2018.
+- R. Wang, J. Zhang, Y. Jia, R. Pan, S. Diao, R. Pi, and T. Zhang, *TheoremLlama: Transforming General-Purpose LLMs into Lean4 Experts*, arXiv preprint, https://arxiv.org/abs/2407.03203, 2024.
+- V. Kiss and L. Tóthmérész, *Chip-firing games on Eulerian digraphs and NP-hardness of computing the rank of a divisor on a graph*, Discrete Applied Mathematics, vol. 193, pp. 48–56, Oct. 2015. DOI: http://dx.doi.org/10.1016/j.dam.2015.04.030.
+
+---
+
+### Acknowledgments
+
+I would like to express my deepest gratitude to **Professor Nathan Pflueger**, my mathematics thesis advisor at Amherst College, for his invaluable guidance, support, and encouragement throughout this project.
+
+---
+
+### Contact
+For questions, contributions, or collaboration, please reach out to [Dhyey Mavani](mailto:ddmavani2003@gmail.com).
+
+---
+
+Happy proving! 🚀
