@@ -1,4 +1,7 @@
-import ChipFiringWithLean.CFGraph
+import ChipFiringWithLean.Basic
+import ChipFiringWithLean.Config
+import ChipFiringWithLean.Orientation
+import ChipFiringWithLean.Rank
 import Mathlib.Algebra.Ring.Int
 
 set_option linter.unusedVariables false

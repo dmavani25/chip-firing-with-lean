@@ -1,4 +1,7 @@
-import ChipFiringWithLean.CFGraph
+import ChipFiringWithLean.Basic
+import ChipFiringWithLean.Config
+import ChipFiringWithLean.Orientation
+import ChipFiringWithLean.Rank
 import ChipFiringWithLean.RRGHelpers
 import Mathlib.Algebra.Ring.Int
 
@@ -35,6 +38,7 @@ axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : 
   ∃ (O₁ O₂ : Orientation G),
     is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
     canonical_divisor G = λ v => divisor_of_orientation G O₁ v + divisor_of_orientation G O₂ v
+
 /-- Axiom: Helper for rank characterization to get effective divisor -/
 axiom rank_get_effective {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
   ∃ E : CFDiv V, effective E ∧ deg E = rank G D + 1 ∧ ¬(winnable G (λ v => D v - E v))

@@ -1,4 +1,4 @@
-import ChipFiringWithLean.CFGraph
+import ChipFiringWithLean.Basic
 import Mathlib.Data.Int.Order.Lemmas
 import Mathlib.Data.Int.Order.Basic
 import Mathlib.Tactic.NormNum
