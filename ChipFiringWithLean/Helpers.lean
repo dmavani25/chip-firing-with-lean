@@ -42,6 +42,7 @@ lemma num_edges_nonneg (G : CFGraph V) (v w : V) :
   unfold num_edges
   apply Nat.cast_nonneg
 
+/-
 theorem helper_effective_linear_equiv_proof (G : CFGraph V) (D₁ D₂ : CFDiv V) :
     linear_equiv G D₁ D₂ → effective D₁ → effective D₂ := by
   intros h_linear h_eff
@@ -121,7 +122,7 @@ theorem helper_effective_linear_equiv_proof (G : CFGraph V) (D₁ D₂ : CFDiv V
       linarith [h_base, h_sum_nonneg]
 
   exact h_nonneg
-
+-/
 
 
 
@@ -387,9 +388,9 @@ theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
     rw [h]
     exact AddSubgroup.add_mem (principal_divisors G) hE₁_equiv hE₂_equiv
   }
--/
+--/
 
-/-- Axiom: Winnability is preserved under addition -/
+/- Axiom: Winnability is preserved under addition -/
 axiom helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v)
 
