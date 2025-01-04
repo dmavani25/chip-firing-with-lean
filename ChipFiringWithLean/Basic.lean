@@ -33,6 +33,35 @@ structure CFGraph (V : Type) [DecidableEq V] [Fintype V] :=
 -- Divisor as a function from vertices to integers
 def CFDiv (V : Type) := V → ℤ
 
+-- Divisor addition (pointwise)
+instance : Add (CFDiv V) := ⟨λ D₁ D₂ => λ v => D₁ v + D₂ v⟩
+
+-- Divisor subtraction (pointwise)
+instance : Sub (CFDiv V) := ⟨λ D₁ D₂ => λ v => D₁ v - D₂ v⟩
+
+-- Zero divisor
+instance : Zero (CFDiv V) := ⟨λ _ => 0⟩
+
+-- Neg for divisors
+instance : Neg (CFDiv V) := ⟨λ D => λ v => -D v⟩
+
+-- Add coercion from V → ℤ to CFDiv V
+instance : Coe (V → ℤ) (CFDiv V) where
+  coe f := f
+
+-- Properties of divisor arithmetic
+@[simp] lemma add_apply (D₁ D₂ : CFDiv V) (v : V) :
+  (D₁ + D₂) v = D₁ v + D₂ v := rfl
+
+@[simp] lemma sub_apply (D₁ D₂ : CFDiv V) (v : V) :
+  (D₁ - D₂) v = D₁ v - D₂ v := rfl
+
+@[simp] lemma zero_apply (v : V) :
+  (0 : CFDiv V) v = 0 := rfl
+
+@[simp] lemma neg_apply (D : CFDiv V) (v : V) :
+  (-D) v = -(D v) := rfl
+
 -- Number of edges between two vertices as an integer
 def num_edges (G : CFGraph V) (v w : V) : ℕ :=
   ↑(Multiset.card (G.edges.filter (λ e => e = (v, w) ∨ e = (w, v))))
@@ -153,6 +182,7 @@ def complete_linear_system (G: CFGraph V) (D: CFDiv V) : Set (CFDiv V) :=
 
 -- Degree of a divisor
 def deg (D : CFDiv V) : ℤ := ∑ v, D v
+def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 
 -- Define a firing script as a function from vertices to integers
 def firing_script (V : Type) := V → ℤ
