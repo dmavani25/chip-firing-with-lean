@@ -13,8 +13,6 @@ open Multiset Finset
 variable {V : Type} [DecidableEq V] [Fintype V]
 
 
-
-
 /-
 # Helpers for Proposition 3.2.4
 -/
@@ -390,10 +388,50 @@ theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   }
 --/
 
-/- Axiom: Winnability is preserved under addition -/
-axiom helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
-  winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v)
+/- Theorem [Proved]: Winnability is preserved under addition -/
+theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
+  winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v) := by
+  -- Assume D₁ and D₂ are winnable
+  intro h1 h2
 
+  -- Get the effective divisors that D₁ and D₂ are equivalent to
+  rcases h1 with ⟨E₁, hE₁_eff, hE₁_equiv⟩
+  rcases h2 with ⟨E₂, hE₂_eff, hE₂_equiv⟩
+
+  -- Our goal is to show that D₁ + D₂ is winnable
+  -- We'll show E₁ + E₂ is effective and linearly equivalent to D₁ + D₂
+
+  -- Define our candidate effective divisor
+  let E := E₁ + E₂
+
+  -- Show E is effective
+  have hE_eff : effective E := by
+    intro v
+    simp [effective] at hE₁_eff hE₂_eff ⊢
+    unfold Div_plus at hE₁_eff hE₂_eff
+    have h1 := hE₁_eff v
+    have h2 := hE₂_eff v
+    exact add_nonneg h1 h2
+
+  -- Show E is linearly equivalent to D₁ + D₂
+  have hE_equiv : linear_equiv G (D₁ + D₂) E := by
+    unfold linear_equiv
+    -- Show (E₁ + E₂) - (D₁ + D₂) = (E₁ - D₁) + (E₂ - D₂)
+    have h : E - (D₁ + D₂) = (E₁ - D₁) + (E₂ - D₂) := by
+      funext w
+      simp [sub_apply, add_apply]
+      -- Expand E = E₁ + E₂
+      have h1 : E w = E₁ w + E₂ w := rfl
+      rw [h1]
+      -- Use ring arithmetic to complete the proof
+      ring
+
+    rw [h]
+    -- Use the fact that principal divisors form an additive subgroup
+    exact AddSubgroup.add_mem _ hE₁_equiv hE₂_equiv
+
+  -- Construct the witness for winnability
+  exists E
 
 /-
 # Helpers for Corollary 4.2.3

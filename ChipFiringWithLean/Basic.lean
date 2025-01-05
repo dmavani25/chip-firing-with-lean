@@ -62,6 +62,18 @@ instance : Coe (V → ℤ) (CFDiv V) where
 @[simp] lemma neg_apply (D : CFDiv V) (v : V) :
   (-D) v = -(D v) := rfl
 
+@[simp] lemma distrib_sub_add (D₁ D₂ D₃ : CFDiv V) :
+  D₁ - (D₂ + D₃) = (D₁ - D₂) - D₃ := by
+  funext x
+  simp [sub_apply, add_apply]
+  ring
+
+@[simp] lemma add_sub_distrib (D₁ D₂ D₃ : CFDiv V) :
+  (D₁ + D₂) - D₃ = (D₁ - D₃) + D₂ := by
+  funext x
+  simp [sub_apply, add_apply]
+  ring
+
 -- Number of edges between two vertices as an integer
 def num_edges (G : CFGraph V) (v w : V) : ℕ :=
   ↑(Multiset.card (G.edges.filter (λ e => e = (v, w) ∨ e = (w, v))))
