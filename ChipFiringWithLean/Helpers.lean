@@ -437,53 +437,96 @@ theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
 # Helpers for Corollary 4.2.3
 -/
 
+/-- Auxillary: Every divisor can be decomposed into a principal divisor and an effective divisor -/
+lemma eq_nil_of_card_eq_zero {α : Type _} {m : Multiset α}
+    (h : Multiset.card m = 0) : m = ∅ := by
+  induction m using Multiset.induction_on with
+  | empty => rfl
+  | cons a s ih =>
+    simp only [Multiset.card_cons] at h
+    -- card s + 1 = 0 is impossible for natural numbers
+    have : ¬(Multiset.card s + 1 = 0) := Nat.succ_ne_zero (Multiset.card s)
+    contradiction
+
+/-- Auxillary: In a loopless graph, each edge has distinct endpoints -/
+lemma edge_endpoints_distinct (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) :
+    e.1 ≠ e.2 := by
+  by_contra eq_endpoints
+  have : isLoopless G.edges = true := G.loopless
+  unfold isLoopless at this
+  have zero_loops : Multiset.card (G.edges.filter (λ e' => e'.1 = e'.2)) = 0 := by
+    simp only [decide_eq_true_eq] at this
+    exact this
+  have e_loop_mem : e ∈ Multiset.filter (λ e' => e'.1 = e'.2) G.edges := by
+    simp [he, eq_endpoints]
+  have positive : 0 < Multiset.card (G.edges.filter (λ e' => e'.1 = e'.2)) := by
+    exact Multiset.card_pos_iff_exists_mem.mpr ⟨e, e_loop_mem⟩
+  have : Multiset.filter (fun e' => e'.1 = e'.2) G.edges = ∅ := eq_nil_of_card_eq_zero zero_loops
+  rw [this] at e_loop_mem
+  cases e_loop_mem
+
+/-- Auxillary: Each edge is incident to exactly two vertices -/
+lemma edge_incident_vertices_count (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) :
+    (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card = 2 := by
+  rw [Finset.card_eq_two]
+  exists e.1
+  exists e.2
+  constructor
+  · exact edge_endpoints_distinct G e he
+  · ext v
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+               Finset.mem_insert, Finset.mem_singleton]
+    constructor
+    · intro h
+      cases h with
+      | inl h1 => exact Or.inl (Eq.symm h1)
+      | inr h2 => exact Or.inr (Eq.symm h2)
+    · intro h
+      cases h with
+      | inl h1 => exact Or.inl (Eq.symm h1)
+      | inr h2 => exact Or.inr (Eq.symm h2)
+
+/-- Auxillary Axiom: The sum of edge incidences equals the sum of mapped incidence counts -/
+axiom sum_filter_eq_map_inc (G : CFGraph V) :
+  ∑ v, Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))
+    = (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)).sum
+
+/-- Auxillary Axiom: Summing mapped incidence counts equals summing constant 2 -/
+axiom map_inc_eq_map_two (G : CFGraph V) :
+  (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)).sum
+    = 2 * (Multiset.card G.edges)
+
 /--
+**Handshaking Theorem:** In a loopless multigraph \(G\), the sum of the degrees of all vertices
+is twice the number of edges:
+
+\[
+  \sum_{v \in V} \deg(v) \;=\; 2 \cdot \#(\text{edges of }G).
+\]
+-/
 theorem helper_sum_vertex_degrees (G : CFGraph V) :
-  ∑ v, vertex_degree G v = 2 * ↑(Multiset.card G.edges) := by
+    ∑ v, vertex_degree G v = 2 * ↑(Multiset.card G.edges) := by
+
   unfold vertex_degree
 
-  -- For each edge e, count how many times it appears in each vertex's filter (Working)
   have h_count : ∀ e ∈ G.edges,
     (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card = 2 := by
     intro e he
-    -- Prove endpoints are distinct using loopless property (Working)
-    have h_ne : e.1 ≠ e.2 := by
-      by_contra h
-      have : isLoopless G.edges = true := G.loopless
-      unfold isLoopless at this
-      have h_loop : Multiset.card (G.edges.filter (λ e => e.1 = e.2)) = 0 := by
-        simp only [decide_eq_true_eq] at this
-        exact this
-      have h_mem : e ∈ Multiset.filter (λ e' => e'.1 = e'.2) G.edges := by
-        simp [he, h]
-      have h_card : 0 < Multiset.card (G.edges.filter (λ e' => e'.1 = e'.2)) := by
-        exact Multiset.card_pos_iff_exists_mem.mpr ⟨e, h_mem⟩
-      exact h_card.ne' h_loop
+    exact edge_incident_vertices_count G e he
 
-    -- Show filter contains exactly two vertices (Working)
-    rw [Finset.card_eq_two]
-    exists e.1
-    exists e.2
-    constructor
-    · exact h_ne
-    · ext v
-      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_insert,
-                Finset.mem_singleton]
-      constructor
-      · intro h
-        cases h with
-        | inl h => exact Or.inl (Eq.symm h)
-        | inr h => exact Or.inr (Eq.symm h)
-      · intro h
-        cases h with
-        | inl h => exact Or.inl (Eq.symm h)
-        | inr h => exact Or.inr (Eq.symm h)
+  -- Define a helper function: for any edge e, inc(e) = number of vertices v incident to e.
+  let inc : (V × V) → ℕ := λ e =>
+    (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card
 
-  admit
--/
--- Axiom: Sum of vertex degrees equals 2|E| (handshake lemma)
-axiom helper_sum_vertex_degrees (G : CFGraph V) :
-  ∑ v, vertex_degree G v = 2 * ↑(Multiset.card G.edges)
+  calc
+    ∑ v, vertex_degree G v
+    = ∑ v, ↑(Multiset.card (G.edges.filter (λ e => e.1 = v ∨ e.2 = v))) := by rfl
+    _ = ↑(∑ v, Multiset.card (G.edges.filter (λ e => e.1 = v ∨ e.2 = v))) := by simp
+    _ = ↑((G.edges.map inc).sum) := by
+      rw [sum_filter_eq_map_inc G]
+    _ = 2 * ↑(Multiset.card G.edges) := by
+      rw [map_inc_eq_map_two G]
+      simp
 
 
 

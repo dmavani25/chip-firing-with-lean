@@ -27,24 +27,6 @@ def maximal_winnable (G : CFGraph V) (D : CFDiv V) : Prop :=
 def maximal_unwinnable (G : CFGraph V) (D : CFDiv V) : Prop :=
   ¬winnable G D ∧ ∀ v : V, winnable G (λ w => D w + if w = v then 1 else 0)
 
-/-- Check if there are edges in both directions between two vertices -/
-def has_bidirectional_edges (G : CFGraph V) (O : Orientation G) (u v : V) : Prop :=
-  ∃ e₁ e₂, e₁ ∈ O.directed_edges ∧ e₂ ∈ O.directed_edges ∧ e₁ = (u, v) ∧ e₂ = (v, u)
-
-/-- All multiple edges between same vertices point in same direction -/
-def consistent_edge_directions (G : CFGraph V) (O : Orientation G) : Prop :=
-  ∀ u v : V, ¬has_bidirectional_edges G O u v
-
-/-- An orientation is acyclic if it has no directed cycles and
-    maintains consistent edge directions between vertices -/
-def is_acyclic (G : CFGraph V) (O : Orientation G) : Prop :=
-  consistent_edge_directions G O ∧
-  ¬∃ p : DirectedPath G O,
-    p.vertices.length > 0 ∧
-    match (p.vertices.get? 0, p.vertices.get? (p.vertices.length - 1)) with
-    | (some u, some v) => u = v
-    | _ => False
-
 /-- Given an acyclic orientation O with source q, returns a configuration c(O) -/
 def orientation_to_config (G : CFGraph V) (O : Orientation G) (q : V)
     (h_acyclic : is_acyclic G O) (h_source : is_source G O q) : Config V q :=
@@ -96,6 +78,16 @@ axiom rank_exists_unique (G : CFGraph V) (D : CFDiv V) :
 /-- The rank function for divisors -/
 noncomputable def rank (G : CFGraph V) (D : CFDiv V) : ℤ :=
   Classical.choose (rank_exists_unique G D)
+
+/-- Definition: Properties of rank function with respect to effective divisors -/
+def rank_effective_char {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) (r : ℤ) :=
+  rank G D = r ↔
+  (∀ E : CFDiv V, effective E → deg E = r + 1 → ¬(winnable G (λ v => D v - E v))) ∧
+  (∀ E : CFDiv V, effective E → deg E = r → winnable G (λ v => D v - E v))
+
+/-- Definition (Axiomatic): Helper for rank characterization to get effective divisor -/
+axiom rank_get_effective {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
+  ∃ E : CFDiv V, effective E ∧ deg E = rank G D + 1 ∧ ¬(winnable G (λ v => D v - E v))
 
 /-- Rank satisfies the defining properties -/
 axiom rank_spec (G : CFGraph V) (D : CFDiv V) :

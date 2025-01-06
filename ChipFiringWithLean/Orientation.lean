@@ -207,6 +207,24 @@ axiom path_exists (G : CFGraph V) (O : Orientation G) (u v : V) :
     p.vertices.get? 0 = some u ∧
     p.vertices.get? (p.vertices.length - 1) = some v
 
+/-- Check if there are edges in both directions between two vertices -/
+def has_bidirectional_edges (G : CFGraph V) (O : Orientation G) (u v : V) : Prop :=
+  ∃ e₁ e₂, e₁ ∈ O.directed_edges ∧ e₂ ∈ O.directed_edges ∧ e₁ = (u, v) ∧ e₂ = (v, u)
+
+/-- All multiple edges between same vertices point in same direction -/
+def consistent_edge_directions (G : CFGraph V) (O : Orientation G) : Prop :=
+  ∀ u v : V, ¬has_bidirectional_edges G O u v
+
+/-- An orientation is acyclic if it has no directed cycles and
+    maintains consistent edge directions between vertices -/
+def is_acyclic (G : CFGraph V) (O : Orientation G) : Prop :=
+  consistent_edge_directions G O ∧
+  ¬∃ p : DirectedPath G O,
+    p.vertices.length > 0 ∧
+    match (p.vertices.get? 0, p.vertices.get? (p.vertices.length - 1)) with
+    | (some u, some v) => u = v
+    | _ => False
+
 /-- A maximal superstable configuration has no legal firings and dominates all other superstable configs -/
 def maximal_superstable {q : V} (G : CFGraph V) (c : Config V q) : Prop :=
   superstable G q c ∧ ∀ c' : Config V q, superstable G q c' → config_ge c' c
@@ -219,3 +237,9 @@ def divisor_of_orientation (G : CFGraph V) (O : Orientation G) : CFDiv V :=
     This is independent of orientation and equals D(O) + D(reverse(O)) -/
 def canonical_divisor (G : CFGraph V) : CFDiv V :=
   λ v => (vertex_degree G v) - 2
+
+/-- Definition (Axiomatic): Canonical divisor is sum of two acyclic orientations -/
+axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) :
+  ∃ (O₁ O₂ : Orientation G),
+    is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
+    canonical_divisor G = λ v => divisor_of_orientation G O₁ v + divisor_of_orientation G O₂ v
