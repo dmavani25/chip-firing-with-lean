@@ -19,6 +19,9 @@ axiom dhar_algorithm {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q :
     linear_equiv G D (λ v => c.vertex_degree v + (if v = q then k else 0)) ∧
     superstable G q c
 
+/-- Axiom for Fintype.exists_elem to carry forward existence argument from Corry & Perkins-/
+axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
+
 /-- Axiom: For unwinnable divisors, Dhar's algorithm produces negative k -/
 axiom dhar_negative_k {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
   ¬(winnable G D) →
@@ -27,28 +30,9 @@ axiom dhar_negative_k {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q 
     superstable G q c →
     k < 0
 
-/-- Axiom: Properties of rank function with respect to effective divisors -/
-axiom rank_effective_char {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) (r : ℤ) :
-  rank G D = r ↔
-  (∀ E : CFDiv V, effective E → deg E = r + 1 → ¬(winnable G (λ v => D v - E v))) ∧
-  (∀ E : CFDiv V, effective E → deg E = r → winnable G (λ v => D v - E v))
-
-/-- Axiom: Canonical divisor is sum of two acyclic orientations -/
-axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) :
-  ∃ (O₁ O₂ : Orientation G),
-    is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
-    canonical_divisor G = λ v => divisor_of_orientation G O₁ v + divisor_of_orientation G O₂ v
-
-/-- Axiom: Helper for rank characterization to get effective divisor -/
-axiom rank_get_effective {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
-  ∃ E : CFDiv V, effective E ∧ deg E = rank G D + 1 ∧ ¬(winnable G (λ v => D v - E v))
-
 /-- Axiom: Helper for inequalities needed in Riemann-Roch -/
 axiom rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
   deg D - genus G < rank G D - rank G (λ v => canonical_divisor G v - D v)
-
-/-- Axiom for Fintype.exists_elem -/
-axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
 
 /-- The main Riemann-Roch theorem for graphs -/
 theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
