@@ -183,7 +183,7 @@ axiom helper_orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q 
     (orientation_to_config G O q h_acyclic h_source).vertex_degree v =
     if v = q then 0 else (indeg G O v : ℤ) - 1
 
-/-- Helper Lemma to convert between configuration equality forms -/
+/-- [Proven] Helper Lemma to convert between configuration equality forms -/
 lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
     {O₁ O₂ : {O : Orientation G // is_acyclic G O ∧ is_source G O q}}
     (h : orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 =
@@ -346,46 +346,6 @@ theorem divisor_decomposition (G : CFGraph V) (E'' : CFDiv V) (k₁ k₂ : ℕ)
   · -- Show E'' = λ v => E₁ v + E₂ v
     funext v
     simp [E₁, E₂]
-
-/-- Theorem (Proven): Winnability is preserved under addition -/
-theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
-  winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v) := by
-  -- Introduce the winnability hypotheses
-  intros h1 h2
-
-  -- Unfold winnability definition for D₁ and D₂
-  rcases h1 with ⟨E₁, hE₁_eff, hE₁_equiv⟩
-  rcases h2 with ⟨E₂, hE₂_eff, hE₂_equiv⟩
-
-  -- Our goal is to find an effective divisor linearly equivalent to D₁ + D₂
-  use (E₁ + E₂)
-
-  constructor
-  -- Show E₁ + E₂ is effective
-  {
-    unfold Div_plus at hE₁_eff hE₂_eff
-    unfold effective at *
-    intro v
-    have h1 := hE₁_eff v
-    have h2 := hE₂_eff v
-    exact add_nonneg h1 h2
-  }
-
-  -- Show E₁ + E₂ is linearly equivalent to D₁ + D₂
-  {
-    unfold linear_equiv at *
-
-    -- First convert the function to a CFDiv
-    let D₁₂ : CFDiv V := (λ v => D₁ v + D₂ v)
-
-    have h : (E₁ + E₂ - D₁₂) = (E₁ - D₁) + (E₂ - D₂) := by
-      funext v
-      simp [Pi.add_apply, sub_apply]
-      ring
-
-    rw [h]
-    exact AddSubgroup.add_mem (principal_divisors G) hE₁_equiv hE₂_equiv
-  }
 --/
 
 /- Theorem [Proved]: Winnability is preserved under addition -/
@@ -433,11 +393,54 @@ theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   -- Construct the witness for winnability
   exists E
 
+/- Theorem [Alternative-Proof]: Winnability is preserved under addition -/
+theorem helper_winnable_add_alternative (G : CFGraph V) (D₁ D₂ : CFDiv V) :
+  winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v) := by
+  -- Introduce the winnability hypotheses
+  intros h1 h2
+
+  -- Unfold winnability definition for D₁ and D₂
+  rcases h1 with ⟨E₁, hE₁_eff, hE₁_equiv⟩
+  rcases h2 with ⟨E₂, hE₂_eff, hE₂_equiv⟩
+
+  -- Our goal is to find an effective divisor linearly equivalent to D₁ + D₂
+  use (E₁ + E₂)
+
+  constructor
+  -- Show E₁ + E₂ is effective
+  {
+    unfold Div_plus at hE₁_eff hE₂_eff
+    unfold effective at *
+    intro v
+    have h1 := hE₁_eff v
+    have h2 := hE₂_eff v
+    exact add_nonneg h1 h2
+  }
+
+  -- Show E₁ + E₂ is linearly equivalent to D₁ + D₂
+  {
+    unfold linear_equiv at *
+
+    -- First convert the function to a CFDiv
+    let D₁₂ : CFDiv V := (λ v => D₁ v + D₂ v)
+
+    have h : (E₁ + E₂ - D₁₂) = (E₁ - D₁) + (E₂ - D₂) := by
+      funext v
+      simp [Pi.add_apply, sub_apply]
+      ring
+
+    rw [h]
+    exact AddSubgroup.add_mem (principal_divisors G) hE₁_equiv hE₂_equiv
+  }
+
+
+
+
 /-
 # Helpers for Corollary 4.2.3
 -/
 
-/-- Auxillary: Every divisor can be decomposed into a principal divisor and an effective divisor -/
+/-- Auxillary [Proved]: Every divisor can be decomposed into a principal divisor and an effective divisor -/
 lemma eq_nil_of_card_eq_zero {α : Type _} {m : Multiset α}
     (h : Multiset.card m = 0) : m = ∅ := by
   induction m using Multiset.induction_on with
@@ -448,7 +451,7 @@ lemma eq_nil_of_card_eq_zero {α : Type _} {m : Multiset α}
     have : ¬(Multiset.card s + 1 = 0) := Nat.succ_ne_zero (Multiset.card s)
     contradiction
 
-/-- Auxillary: In a loopless graph, each edge has distinct endpoints -/
+/-- Auxillary [Proved]: In a loopless graph, each edge has distinct endpoints -/
 lemma edge_endpoints_distinct (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) :
     e.1 ≠ e.2 := by
   by_contra eq_endpoints
@@ -465,7 +468,7 @@ lemma edge_endpoints_distinct (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) 
   rw [this] at e_loop_mem
   cases e_loop_mem
 
-/-- Auxillary: Each edge is incident to exactly two vertices -/
+/-- Auxillary [Proved]: Each edge is incident to exactly two vertices -/
 lemma edge_incident_vertices_count (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) :
     (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card = 2 := by
   rw [Finset.card_eq_two]

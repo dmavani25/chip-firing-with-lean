@@ -35,7 +35,7 @@ lemma legal_firing_preserves_effective (G : CFGraph V) (D : CFDiv V) (S : Finset
         simp [hveq]
     linarith
 
--- Proposition 3.2.4: q-reduced and effective implies winnable
+-- [Proven] Proposition 3.2.4: q-reduced and effective implies winnable
 theorem winnable_iff_q_reduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
   winnable G D ↔ ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' ∧ effective D' := by
   constructor
@@ -62,7 +62,7 @@ theorem winnable_iff_q_reduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
     exact ⟨h_eff, h_equiv⟩
   }
 
--- Proposition 3.2.4 (Extension): q-reduced and effective implies winnable
+-- [Proven] Proposition 3.2.4 (Extension): q-reduced and effective implies winnable
 theorem q_reduced_effective_implies_winnable (G : CFGraph V) (q : V) (D : CFDiv V) :
   q_reduced G q D → effective D → winnable G D := by
   intros h_qred h_eff
@@ -76,7 +76,7 @@ theorem q_reduced_effective_implies_winnable (G : CFGraph V) (q : V) (D : CFDiv 
   · exact h_qred  -- D is q-reduced
   · exact h_eff   -- D is effective
 
-/-- Lemma 4.1.10: An acyclic orientation is uniquely determined by its indegree sequence -/
+/-- [Proven] Lemma 4.1.10: An acyclic orientation is uniquely determined by its indegree sequence -/
 theorem acyclic_orientation_unique_by_indeg {G : CFGraph V}
   (O O' : Orientation G)
   (h_acyclic : is_acyclic G O)
@@ -86,7 +86,7 @@ theorem acyclic_orientation_unique_by_indeg {G : CFGraph V}
   -- Apply the helper_orientation_determined_by_levels axiom directly
   exact helper_orientation_determined_by_levels O O' h_acyclic h_acyclic' h_indeg
 
-/-- Lemma 4.1.10 (Alternative Form): Two acyclic orientations with same indegree sequences are equal -/
+/-- [Proven] Lemma 4.1.10 (Alternative Form): Two acyclic orientations with same indegree sequences are equal -/
 theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : Orientation G)
     (h_acyclic : is_acyclic G O) (h_acyclic' : is_acyclic G O')
     (h_indeg : ∀ v : V, indeg G O v = indeg G O' v) :
@@ -94,7 +94,7 @@ theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : Orientation G)
   -- Use previously defined theorem about uniqueness by indegree
   exact acyclic_orientation_unique_by_indeg O O' h_acyclic h_acyclic' h_indeg
 
-/-- Proposition 4.1.11: Bijection between acyclic orientations with source q
+/-- [Proven] Proposition 4.1.11: Bijection between acyclic orientations with source q
     and maximal superstable configurations -/
 theorem stable_bijection (G : CFGraph V) (q : V) :
     Function.Bijective (λ (O : {O : Orientation G // is_acyclic G O ∧ is_source G O q}) =>
@@ -133,7 +133,7 @@ theorem stable_bijection (G : CFGraph V) (q : V) :
       _ = c' := h_eq
       _ = c  := helper_maximal_superstable_unique_dominates G q c c' h_max' h_ge }
 
-/-- Corollary 4.2.2: Rank inequality for divisors -/
+/-- [Proven] Corollary 4.2.2: Rank inequality for divisors -/
 theorem rank_subadditive (G : CFGraph V) (D D' : CFDiv V)
     (h_D : rank G D ≥ 0) (h_D' : rank G D' ≥ 0) :
     rank G (λ v => D v + D' v) ≥ rank G D + rank G D' := by
@@ -195,7 +195,7 @@ theorem rank_subadditive (G : CFGraph V) (D D' : CFDiv V)
   rw [h_sum] at h_final
   exact h_final
 
--- Corollary 4.2.3: Degree of canonical divisor equals 2g - 2
+-- [Proven] Corollary 4.2.3: Degree of canonical divisor equals 2g - 2
 theorem degree_of_canonical_divisor (G : CFGraph V) :
     deg (canonical_divisor G) = 2 * genus G - 2 := by
   -- First unfold definitions
@@ -221,7 +221,7 @@ theorem degree_of_canonical_divisor (G : CFGraph V) :
   -- Final algebraic simplification
   ring
 
-/-- Proposition 4.1.13 (1): Characterization of maximal superstable configurations by their degree -/
+/-- [Proven] Proposition 4.1.13 (1): Characterization of maximal superstable configurations by their degree -/
 theorem maximal_superstable_config_prop (G : CFGraph V) (q : V) (c : Config V q) :
   superstable G q c → (maximal_superstable G c ↔ config_degree c = genus G) := by
   intro h_super
@@ -238,7 +238,7 @@ theorem maximal_superstable_config_prop (G : CFGraph V) (q : V) (c : Config V q)
     -- Apply the axiom that degree g implies maximality
     exact helper_degree_g_implies_maximal G q c h_super h_deg }
 
-/-- Proposition 4.1.13 (2): Characterization of maximal unwinnable divisors -/
+/-- [Proven] Proposition 4.1.13 (2): Characterization of maximal unwinnable divisors -/
 theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
   maximal_unwinnable G D ↔
   ∃ c : Config V q, maximal_superstable G c ∧
@@ -306,7 +306,7 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
           exact h_equiv
         exact helper_winnable_through_equiv_and_chip G q D c h_equiv' h_max v hv } } }
 
-/-- Proposition 4.1.13: Combined (1) and (2)-/
+/-- [Proven] Proposition 4.1.13: Combined (1) and (2)-/
 theorem superstable_and_maximal_unwinnable (G : CFGraph V) (q : V)
     (c : Config V q) (D : CFDiv V) :
     (superstable G q c →
