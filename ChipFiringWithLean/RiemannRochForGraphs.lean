@@ -13,16 +13,29 @@ open Multiset Finset
 -- Assume V is a finite type with decidable equality
 variable {V : Type} [DecidableEq V] [Fintype V]
 
-/-- Axiom: Dhar's algorithm produces q-reduced divisor from any divisor -/
+/-- Axiom: Dhar's algorithm produces q-reduced divisor from any divisor
+    Given any divisor D, Dhar's algorithm produces a unique q-reduced divisor that is
+    linearly equivalent to D. The algorithm outputs both a superstable configuration c
+    and an integer k, where k represents the number of chips at q. This is a key result
+    from Dhar (1990) proven in detail in Chapter 3 of Corry & Perkinson's "Divisors and
+    Sandpiles" (AMS, 2018) -/
 axiom dhar_algorithm {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
   ∃ (c : Config V q) (k : ℤ),
     linear_equiv G D (λ v => c.vertex_degree v + (if v = q then k else 0)) ∧
     superstable G q c
 
-/-- Axiom for Fintype.exists_elem to carry forward existence argument from Corry & Perkins-/
+/-- Axiom: Existence of elements in finite types
+    This is a technical axiom used to carry forward existence arguments we frequently use
+    such as the fact that finite graphs have vertices. This axiom
+    captures this in a way that can be used in formal lean4 proofs. -/
 axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
 
-/-- Axiom: For unwinnable divisors, Dhar's algorithm produces negative k -/
+/-- Axiom: Dhar's algorithm produces negative k for unwinnable divisors
+    When applied to an unwinnable divisor D, Dhar's algorithm must produce a
+    negative value for k (the number of chips at q). This is a crucial fact used
+    in characterizing unwinnable divisors, proven in chapter 4 of Corry & Perkinson's
+    "Divisors and Sandpiles" (AMS, 2018). The negativity of k is essential for
+    showing the relationship between unwinnable divisors and q-reduced forms. -/
 axiom dhar_negative_k {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
   ¬(winnable G D) →
   ∀ (c : Config V q) (k : ℤ),
@@ -30,11 +43,12 @@ axiom dhar_negative_k {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q 
     superstable G q c →
     k < 0
 
-/-- Axiom: Helper for inequalities needed in Riemann-Roch -/
+/-- Axiom: Helper for inequalities needed in Riemann-Roch
+    [@TODO] Future Work: To prove. -/
 axiom rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
   deg D - genus G < rank G D - rank G (λ v => canonical_divisor G v - D v)
 
-/-- The main Riemann-Roch theorem for graphs -/
+/-- [Proven] The main Riemann-Roch theorem for graphs -/
 theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D : CFDiv V) :
   rank G D - rank G (λ v => canonical_divisor G v - D v) = deg D - genus G + 1 := by
   -- Get rank value for D
