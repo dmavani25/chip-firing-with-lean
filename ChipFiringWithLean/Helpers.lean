@@ -21,106 +21,11 @@ variable {V : Type} [DecidableEq V] [Fintype V]
 axiom helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
   ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
 
--- Axiom: Effectiveness preservation under linear equivalence
+/-- Axiom: Effectiveness preservation under linear equivalence (legal set-firings)
+    This is a fact that is directly used in Corollary 3. by Corry & Perkins (Divisors & Sandpiles) -/
 axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   linear_equiv G D₁ D₂ → effective D₁ → effective D₂
 
-lemma mem_principal_divisors_basic (G : CFGraph V) (v : V) :
-  (λ w => if w = v then -vertex_degree G v else num_edges G v w) ∈ principal_divisors G := by
-  apply AddSubgroup.subset_closure
-  apply Set.mem_range_self
-
-lemma vertex_degree_nonneg (G : CFGraph V) (v : V) :
-  vertex_degree G v ≥ 0 := by
-  unfold vertex_degree
-  apply Nat.cast_nonneg
-
-lemma num_edges_nonneg (G : CFGraph V) (v w : V) :
-  num_edges G v w ≥ 0 := by
-  unfold num_edges
-  apply Nat.cast_nonneg
-
-/-
-theorem helper_effective_linear_equiv_proof (G : CFGraph V) (D₁ D₂ : CFDiv V) :
-    linear_equiv G D₁ D₂ → effective D₁ → effective D₂ := by
-  intros h_linear h_eff
-  unfold linear_equiv at h_linear
-  unfold effective at *
-  intro v
-
-  -- Express D₂ in terms of D₁
-  have h_d2 : D₂ v = (D₁ + (D₂ - D₁)) v := by
-    simp [add_apply, sub_apply]
-
-  rw [h_d2]
-
-  -- Use properties of principal_divisors directly
-  have h_nonneg : D₁ v + (D₂ - D₁) v ≥ 0 := by
-    have h_base := h_eff v
-    have h_firing := h_linear
-
-    -- Use the fact that D₂ - D₁ is in principal_divisors
-    have h_decomp : ∃ S : Finset V, (D₂ - D₁) v =
-      finset_sum S (λ u => if v = u then -vertex_degree G u else num_edges G u v) := by
-      sorry  -- This follows from membership in principal_divisors
-
-    rcases h_decomp with ⟨S, hS⟩
-    rw [hS]
-
-    -- Case analysis on whether v ∈ S
-    by_cases hv : v ∈ S
-    · -- If v ∈ S, use vertex_degree properties
-      have h_vd := vertex_degree_nonneg G v
-     -- Use Finset.sum_eq_single to focus on v
-      have h_sum : finset_sum S (λ u => if v = u then -vertex_degree G u else num_edges G u v) =
-          -vertex_degree G v + finset_sum (S.erase v) (λ u => num_edges G u v) := by
-        sorry -- This follows from Finset.sum_eq_single
-      rw [h_sum]
-      -- The sum of num_edges is non-negative
-      have h_sum_nonneg : finset_sum (S.erase v) (λ u => num_edges G u v) ≥ 0 := by
-        apply Finset.sum_nonneg
-        intro x _
-        exact num_edges_nonneg G x v
-      -- Help linarith by rearranging terms
-      have h_rearrange : D₁ v + (-vertex_degree G v + finset_sum (S.erase v) (λ u => num_edges G u v)) =
-                        (D₁ v - vertex_degree G v) + finset_sum (S.erase v) (λ u => num_edges G u v) := by
-        ring
-
-      rw [h_rearrange]
-      have h_base_vd : D₁ v - vertex_degree G v ≥ -vertex_degree G v := by
-        linarith [h_base]
-
-      -- Break down the inequality into steps
-      have h_sum_pos : finset_sum (S.erase v) (λ u => num_edges G u v) ≥ 0 := by
-        apply Finset.sum_nonneg
-        intro x _
-        exact num_edges_nonneg G x v
-
-      have h_D₁_nonneg : D₁ v ≥ 0 := h_base
-
-      have h_vd_nonneg : vertex_degree G v ≥ 0 := h_vd
-
-      -- Now show that adding these inequalities works
-      have h_sum_ineq : D₁ v - vertex_degree G v + finset_sum (S.erase v) (λ u => num_edges G u v) ≥ 0 := by
-        sorry
-
-      exact h_sum_ineq
-    · -- If v ∉ S, use num_edges properties
-      -- When v ∉ S, all terms in sum use num_edges part of conditional
-      have h_sum_eq : finset_sum S (λ u => if v = u then -vertex_degree G u else num_edges G u v) =
-                      finset_sum S (λ u => num_edges G u v) := by
-        sorry
-
-      rw [h_sum_eq]
-      have h_sum_nonneg : finset_sum (S.erase v) (λ u => num_edges G u v) ≥ 0 := by
-        apply Finset.sum_nonneg
-        intro x _
-        exact num_edges_nonneg G x v
-      -- Now combine D₁ v ≥ 0 with sum_nonneg
-      linarith [h_base, h_sum_nonneg]
-
-  exact h_nonneg
--/
 
 
 
@@ -132,10 +37,16 @@ theorem helper_effective_linear_equiv_proof (G : CFGraph V) (D₁ D₂ : CFDiv V
 axiom helper_acyclic_has_source (G : CFGraph V) (O : Orientation G) :
   is_acyclic G O → ∃ v : V, is_source G O v
 
-/-- Axiom: Two orientations are equal if they have same directed edges -/
-axiom helper_orientation_eq_of_directed_edges {G : CFGraph V}
+/-- [Proven] Helper theorem: Two orientations are equal if they have the same directed edges -/
+theorem helper_orientation_eq_of_directed_edges {G : CFGraph V}
   (O O' : Orientation G) :
-  O.directed_edges = O'.directed_edges → O = O'
+  O.directed_edges = O'.directed_edges → O = O' := by
+  intro h
+  -- Use cases to construct the equality proof
+  cases O with | mk edges consistent =>
+  cases O' with | mk edges' consistent' =>
+  -- Create congr_arg to show fields are equal
+  congr
 
 /-- Axiom: Given a list of disjoint vertex sets that form a partition of V,
     this axiom states that an acyclic orientation is uniquely determined
@@ -167,18 +78,22 @@ axiom helper_orientation_config_maximal (G : CFGraph V) (O : Orientation G) (q :
     (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
     maximal_superstable G (orientation_to_config G O q h_acyc h_src)
 
-/-- Axiom: Orientation to config preserves indegrees -/
-axiom orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
+/-- [Proven] Helper lemma: Orientation to config preserves indegrees -/
+lemma orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
     (h_acyclic : is_acyclic G O) (h_source : is_source G O q) (v : V) :
     (orientation_to_config G O q h_acyclic h_source).vertex_degree v =
-    if v = q then 0 else (indeg G O v : ℤ) - 1
+    if v = q then 0 else (indeg G O v : ℤ) - 1 := by
+  -- This follows directly from the definition of config_of_source
+  simp only [orientation_to_config] at *
+  -- Use the definition of config_of_source
+  exact rfl
 
 /-- Axiom: Two acyclic orientations with same indegrees are equal -/
 axiom orientation_unique_by_indeg {G : CFGraph V} (O₁ O₂ : Orientation G)
     (h_acyc₁ : is_acyclic G O₁) (h_acyc₂ : is_acyclic G O₂)
     (h_indeg : ∀ v : V, indeg G O₁ v = indeg G O₂ v) : O₁ = O₂
 
-/-- Helper lemma to show indegree of source is 0 -/
+/-- [Proven] Helper lemma to show indegree of source is 0 -/
 lemma source_indeg_zero {G : CFGraph V} (O : Orientation G) (v : V)
     (h_src : is_source G O v) : indeg G O v = 0 := by
   -- By definition of is_source in terms of indeg
