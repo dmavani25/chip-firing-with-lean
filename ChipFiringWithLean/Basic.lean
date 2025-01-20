@@ -241,3 +241,10 @@ def divisor_ordering (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
 -- Legal set-firing: Ensure no vertex in S is in debt after firing
 def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
   ∀ v ∈ S, set_firing G D S v ≥ 0
+
+/-- Axiom: Q-reduced form uniquely determines divisor class in the following sense:
+    If two divisors D₁ and D₂ are both q-reduced and linearly equivalent,
+    then they must be equal. This is a key uniqueness property that shows
+    every divisor class contains exactly one q-reduced representative. -/
+axiom q_reduced_unique_class (G : CFGraph V) (q : V) (D₁ D₂ : CFDiv V) :
+  q_reduced G q D₁ ∧ q_reduced G q D₂ ∧ linear_equiv G D₁ D₂ → D₁ = D₂

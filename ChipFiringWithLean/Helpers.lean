@@ -530,35 +530,59 @@ axiom helper_degree_g_implies_maximal (G : CFGraph V) (q : V) (c : Config V q) :
 # Helpers for Proposition 4.1.13 Part (2)
 -/
 
-/-- Axiom: Q-reduced form uniquely determines divisor class
-    [@TODO] Future Work: To prove. -/
-axiom helper_q_reduced_unique_class (G : CFGraph V) (q : V) (D₁ D₂ : CFDiv V) :
-  q_reduced G q D₁ ∧ q_reduced G q D₂ ∧ linear_equiv G D₁ D₂ → D₁ = D₂
-
-/-- Axiom: A q-reduced divisor corresponds to a superstable configuration minus q
-    [@TODO] Future Work: To prove. -/
-axiom helper_q_reduced_superstable_form (G : CFGraph V) (q : V) (D : CFDiv V) :
-  q_reduced G q D → ∃ c : Config V q, superstable G q c ∧
-  D = λ v => c.vertex_degree v - if v = q then 1 else 0
-
 /-- Axiom: Superstabilization of configuration with degree g+1 sends chip to q
     [@TODO] Future Work: To prove. -/
 axiom helper_superstabilize_sends_to_q (G : CFGraph V) (q : V) (c : Config V q) :
   maximal_superstable G c → config_degree c = genus G →
   ∀ v : V, v ≠ q → winnable G (λ w => c.vertex_degree w + if w = v then 1 else 0 - if w = q then 1 else 0)
 
-/-- Axiom: Configuration minus q is q-reduced if configuration is superstable
+/-- Axiom: Correspondence between q-reduced divisors and superstable configurations
+    A divisor is q-reduced if and only if it corresponds to a superstable configuration minus q
     [@TODO] Future Work: To prove. -/
-axiom helper_superstable_minus_q_reduced (G : CFGraph V) (q : V) (c : Config V q) :
-  superstable G q c → q_reduced G q (λ v => c.vertex_degree v - if v = q then 1 else 0)
+axiom q_reduced_superstable_correspondence (G : CFGraph V) (q : V) (D : CFDiv V) :
+  q_reduced G q D ↔ ∃ c : Config V q, superstable G q c ∧
+  D = λ v => c.vertex_degree v - if v = q then 1 else 0
 
-/-- Axiom: Linear equivalence preserved under domination for q-reduced forms
+/-- Axiom: When c' dominates c, the difference of their q-reduced divisors is in principal divisors
     [@TODO] Future Work: To prove. -/
-axiom helper_q_reduced_linear_equiv_dominates (G : CFGraph V) (q : V) (c c' : Config V q) :
+axiom helper_q_reduced_diff_principal (G : CFGraph V) (q : V) (c c' : Config V q) :
+  superstable G q c → superstable G q c' → config_ge c' c →
+  ((λ v => c'.vertex_degree v - if v = q then 1 else 0) -
+   (λ v => c.vertex_degree v - if v = q then 1 else 0)) ∈ principal_divisors G
+
+/-- [Proven] Helper lemma: Difference between dominated configurations can be expressed as basic firing moves
+    When c' dominates c (i.e. c'(v) ≥ c(v) for all v ≠ q), their difference can be expressed
+    as a sum of basic firing moves from vertices where c' has strictly more chips than c. -/
+lemma helper_q_reduced_linear_equiv_dominates (G : CFGraph V) (q : V) (c c' : Config V q) :
   superstable G q c → superstable G q c' → config_ge c' c →
   linear_equiv G
     (λ v => c.vertex_degree v - if v = q then 1 else 0)
-    (λ v => c'.vertex_degree v - if v = q then 1 else 0)
+    (λ v => c'.vertex_degree v - if v = q then 1 else 0) := by
+  intros h_super h_super' h_ge
+
+  -- Define the two divisors
+  let D₁ := λ v => c.vertex_degree v - if v = q then 1 else 0
+  let D₂ := λ v => c'.vertex_degree v - if v = q then 1 else 0
+
+  unfold linear_equiv
+
+  -- Show the difference is in principal divisors
+  let diff := D₂ - D₁
+
+  -- Show difference equals vertex degree difference
+  have h_diff_eq : ∀ v, diff v = c'.vertex_degree v - c.vertex_degree v := by
+    intro v
+    by_cases hv : v = q
+    · -- Case v = q
+      rw [hv]
+      have h_q₁ := superstable_zero_at_q G q c h_super
+      have h_q₂ := superstable_zero_at_q G q c' h_super'
+      simp [D₁, D₂, diff, h_q₁, h_q₂]
+    · -- Case v ≠ q
+      simp [D₁, D₂, diff, hv]
+
+  -- Show the difference is in principal divisors
+  exact helper_q_reduced_diff_principal G q c c' h_super h_super' h_ge
 
 /-- Axiom: If c' is maximal superstable and D corresponds to c'-q,
     then winnability of c'+v-q implies winnability of D

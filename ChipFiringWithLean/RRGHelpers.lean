@@ -248,12 +248,14 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
   { -- Forward direction
     intro h_max
     rcases helper_unique_q_reduced G q D with ⟨D', h_D'⟩
-    rcases helper_q_reduced_superstable_form G q D' h_D'.1.2 with ⟨c, h_super, h_form⟩
+    -- Use the forward direction of the new correspondence theorem
+    rcases (q_reduced_superstable_correspondence G q D').mp h_D'.1.2 with ⟨c, h_super, h_form⟩
     have h_max_super : maximal_superstable G c := by
       by_contra h
       rcases helper_maximal_superstable_exists G q c h_super with ⟨c', h_max', h_ge⟩
       let D'' := λ v => c'.vertex_degree v - if v = q then 1 else 0
-      have h_qred' := helper_superstable_minus_q_reduced G q c' h_max'.1
+      -- Use the reverse direction of the new correspondence theorem
+      have h_qred' := (q_reduced_superstable_correspondence G q D'').mpr ⟨c', h_max'.1, rfl⟩
       have h_equiv' := helper_q_reduced_linear_equiv_dominates G q c c' h_super h_max'.1 h_ge
       have h_D_equiv_D'' : linear_equiv G D D'' := by
         have h_D'_equiv_D'' : linear_equiv G D' D'' := by
@@ -286,7 +288,7 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
       rcases this with ⟨E, h_E_equiv, h_E_qred, h_E_eff⟩
       have h_nonneg := h_E_eff q
       -- Connect D' and E through linear equivalence and q-reduced property
-      have h_eq := helper_q_reduced_unique_class G q D' E ⟨h_qred, h_E_qred, h_E_equiv⟩
+      have h_eq := q_reduced_unique_class G q D' E ⟨h_qred, h_E_qred, h_E_equiv⟩
       -- Get contradiction from -1 ≥ 0
       rw [←h_eq] at h_nonneg
       rw [h_q_neg] at h_nonneg
