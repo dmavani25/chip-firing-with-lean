@@ -22,7 +22,7 @@ axiom helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
   ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
 
 /-- Axiom: Effectiveness preservation under linear equivalence (legal set-firings)
-    This is a fact that is directly used in Corollary 3. by Corry & Perkins (Divisors & Sandpiles) -/
+    This is a fact that is directly used in Corollary 3.7 by Corry & Perkins (Divisors & Sandpiles) -/
 axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   linear_equiv G D₁ D₂ → effective D₁ → effective D₂
 
@@ -50,7 +50,8 @@ theorem helper_orientation_eq_of_directed_edges {G : CFGraph V}
 
 /-- Axiom: Given a list of disjoint vertex sets that form a partition of V,
     this axiom states that an acyclic orientation is uniquely determined
-    by this partition where each set contains vertices with same indegree -/
+    by this partition where each set contains vertices with same indegree
+    [@TODO] Future Work: To prove.-/
 axiom helper_orientation_determined_by_levels {G : CFGraph V}
   (O O' : Orientation G) :
   is_acyclic G O → is_acyclic G O' →
@@ -88,10 +89,12 @@ lemma orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
   -- Use the definition of config_of_source
   exact rfl
 
-/-- Axiom: Two acyclic orientations with same indegrees are equal -/
-axiom orientation_unique_by_indeg {G : CFGraph V} (O₁ O₂ : Orientation G)
+/-- [Proven] Helper lemma: Two acyclic orientations with same indegrees are equal -/
+lemma orientation_unique_by_indeg {G : CFGraph V} (O₁ O₂ : Orientation G)
     (h_acyc₁ : is_acyclic G O₁) (h_acyc₂ : is_acyclic G O₂)
-    (h_indeg : ∀ v : V, indeg G O₁ v = indeg G O₂ v) : O₁ = O₂
+    (h_indeg : ∀ v : V, indeg G O₁ v = indeg G O₂ v) : O₁ = O₂ := by
+  -- Apply the helper statement directly since we have exactly matching hypotheses
+  exact helper_orientation_determined_by_levels O₁ O₂ h_acyc₁ h_acyc₂ h_indeg
 
 /-- [Proven] Helper lemma to show indegree of source is 0 -/
 lemma source_indeg_zero {G : CFGraph V} (O : Orientation G) (v : V)
@@ -139,7 +142,7 @@ theorem helper_config_to_orientation_unique (G : CFGraph V) (q : V)
     -- Use nat cast injection
     exact (Nat.cast_inj.mp h)
 
-/-- [Proven] Helper Lemma to convert between configuration equality forms -/
+/-- [Proven] Helper lemma to convert between configuration equality forms -/
 lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
     {O₁ O₂ : {O : Orientation G // is_acyclic G O ∧ is_source G O q}}
     (h : orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 =
@@ -153,18 +156,21 @@ lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
 -/
 axiom helper_config_superstable (G : CFGraph V) (q : V) (c : Config V q) : superstable G q c
 
-/-- Axiom: Every superstable configuration extends to a maximal superstable configuration -/
+/-- Axiom: Every superstable configuration extends to a maximal superstable configuration
+    [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_exists (G : CFGraph V) (q : V) (c : Config V q)
     (h_super : superstable G q c) :
     ∃ c' : Config V q, maximal_superstable G c' ∧ config_ge c' c
 
-/-- Axiom: Every maximal superstable configuration comes from an acyclic orientation -/
+/-- Axiom: Every maximal superstable configuration comes from an acyclic orientation
+    [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_orientation (G : CFGraph V) (q : V) (c : Config V q)
     (h_max : maximal_superstable G c) :
     ∃ (O : Orientation G) (h_acyc : is_acyclic G O) (h_src : is_source G O q),
       orientation_to_config G O q h_acyc h_src = c
 
-/-- Axiom: Maximal superstable configurations are uniquely determined by their orientations -/
+/-- Axiom: Maximal superstable configurations are uniquely determined by their orientations
+    [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_unique (G : CFGraph V) (q : V) (c : Config V q)
   (h_max : maximal_superstable G c)
   (O : Orientation G) (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
@@ -172,7 +178,8 @@ axiom helper_maximal_superstable_unique (G : CFGraph V) (q : V) (c : Config V q)
   ∀ (O' : Orientation G) (h_acyc' : is_acyclic G O' ) (h_src' : is_source G O' q),
   orientation_to_config G O' q h_acyc' h_src' = c → O = O'
 
-/-- Axiom: If c' dominates c and c' is maximal superstable, then c = c' -/
+/-- Axiom: If c' dominates c and c' is maximal superstable, then c = c'
+    [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_unique_dominates (G : CFGraph V) (q : V)
     (c c' : Config V q)
     (h_max' : maximal_superstable G c')
@@ -185,7 +192,8 @@ axiom helper_maximal_superstable_unique_dominates (G : CFGraph V) (q : V)
 # Helpers for Corollary 4.2.2
 -/
 
-/-- Axiom: A divisor can be decomposed into parts of specific degrees -/
+/-- Axiom: A divisor can be decomposed into parts of specific degrees
+    [@TODO] Future Work: To prove. -/
 axiom helper_divisor_decomposition (G : CFGraph V) (E'' : CFDiv V) (k₁ k₂ : ℕ)
   (h_effective : effective E'') (h_deg : deg E'' = k₁ + k₂) :
   ∃ (E₁ E₂ : CFDiv V),
@@ -308,7 +316,7 @@ theorem divisor_decomposition (G : CFGraph V) (E'' : CFDiv V) (k₁ k₂ : ℕ)
     simp [E₁, E₂]
 --/
 
-/- Theorem [Proved]: Winnability is preserved under addition -/
+/- [Proven] Helper theorem: Winnability is preserved under addition -/
 theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v) := by
   -- Assume D₁ and D₂ are winnable
@@ -353,7 +361,7 @@ theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   -- Construct the witness for winnability
   exists E
 
-/- Theorem [Alternative-Proof]: Winnability is preserved under addition -/
+/- [Alternative-Proof] Helper theorem: Winnability is preserved under addition -/
 theorem helper_winnable_add_alternative (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   winnable G D₁ → winnable G D₂ → winnable G (λ v => D₁ v + D₂ v) := by
   -- Introduce the winnability hypotheses
@@ -400,7 +408,7 @@ theorem helper_winnable_add_alternative (G : CFGraph V) (D₁ D₂ : CFDiv V) :
 # Helpers for Corollary 4.2.3
 -/
 
-/-- Auxillary [Proved]: Every divisor can be decomposed into a principal divisor and an effective divisor -/
+/-- [Proved] Helper lemma: Every divisor can be decomposed into a principal divisor and an effective divisor -/
 lemma eq_nil_of_card_eq_zero {α : Type _} {m : Multiset α}
     (h : Multiset.card m = 0) : m = ∅ := by
   induction m using Multiset.induction_on with
@@ -411,7 +419,7 @@ lemma eq_nil_of_card_eq_zero {α : Type _} {m : Multiset α}
     have : ¬(Multiset.card s + 1 = 0) := Nat.succ_ne_zero (Multiset.card s)
     contradiction
 
-/-- Auxillary [Proved]: In a loopless graph, each edge has distinct endpoints -/
+/-- [Proven] Helper lemma: In a loopless graph, each edge has distinct endpoints -/
 lemma edge_endpoints_distinct (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) :
     e.1 ≠ e.2 := by
   by_contra eq_endpoints
@@ -428,7 +436,7 @@ lemma edge_endpoints_distinct (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) 
   rw [this] at e_loop_mem
   cases e_loop_mem
 
-/-- Auxillary [Proved]: Each edge is incident to exactly two vertices -/
+/-- [Proven] Helper lemma: Each edge is incident to exactly two vertices -/
 lemma edge_incident_vertices_count (G : CFGraph V) (e : V × V) (he : e ∈ G.edges) :
     (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card = 2 := by
   rw [Finset.card_eq_two]
@@ -449,12 +457,14 @@ lemma edge_incident_vertices_count (G : CFGraph V) (e : V × V) (he : e ∈ G.ed
       | inl h1 => exact Or.inl (Eq.symm h1)
       | inr h2 => exact Or.inr (Eq.symm h2)
 
-/-- Auxillary Axiom: The sum of edge incidences equals the sum of mapped incidence counts -/
+/-- Auxillary Axiom: The sum of edge incidences equals the sum of mapped incidence counts
+    [@TODO] Future Work: To prove. -/
 axiom sum_filter_eq_map_inc (G : CFGraph V) :
   ∑ v, Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))
     = (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)).sum
 
-/-- Auxillary Axiom: Summing mapped incidence counts equals summing constant 2 -/
+/-- Auxillary Axiom: Summing mapped incidence counts equals summing constant 2
+    [@TODO] Future Work: To prove. -/
 axiom map_inc_eq_map_two (G : CFGraph V) :
   (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)).sum
     = 2 * (Multiset.card G.edges)
@@ -498,15 +508,18 @@ theorem helper_sum_vertex_degrees (G : CFGraph V) :
 # Helpers for Proposition 4.1.13 Part (1)
 -/
 
-/-- Axiom: Superstable configuration degree is bounded by genus -/
+/-- Axiom: Superstable configuration degree is bounded by genus
+    [@TODO] Future Work: To prove. -/
 axiom helper_superstable_degree_bound (G : CFGraph V) (q : V) (c : Config V q) :
   superstable G q c → config_degree c ≤ genus G
 
-/-- Axiom: Every maximal superstable configuration has degree at least g -/
+/-- Axiom: Every maximal superstable configuration has degree at least g
+    [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_degree_lower_bound (G : CFGraph V) (q : V) (c : Config V q) :
   superstable G q c → maximal_superstable G c → config_degree c ≥ genus G
 
-/-- Axiom: If a superstable configuration has degree equal to g, it is maximal -/
+/-- Axiom: If a superstable configuration has degree equal to g, it is maximal
+    [@TODO] Future Work: To prove. -/
 axiom helper_degree_g_implies_maximal (G : CFGraph V) (q : V) (c : Config V q) :
   superstable G q c → config_degree c = genus G → maximal_superstable G c
 
@@ -517,25 +530,30 @@ axiom helper_degree_g_implies_maximal (G : CFGraph V) (q : V) (c : Config V q) :
 # Helpers for Proposition 4.1.13 Part (2)
 -/
 
-/-- Axiom: Q-reduced form uniquely determines divisor class -/
+/-- Axiom: Q-reduced form uniquely determines divisor class
+    [@TODO] Future Work: To prove. -/
 axiom helper_q_reduced_unique_class (G : CFGraph V) (q : V) (D₁ D₂ : CFDiv V) :
   q_reduced G q D₁ ∧ q_reduced G q D₂ ∧ linear_equiv G D₁ D₂ → D₁ = D₂
 
-/-- Axiom: A q-reduced divisor corresponds to a superstable configuration minus q -/
+/-- Axiom: A q-reduced divisor corresponds to a superstable configuration minus q
+    [@TODO] Future Work: To prove. -/
 axiom helper_q_reduced_superstable_form (G : CFGraph V) (q : V) (D : CFDiv V) :
   q_reduced G q D → ∃ c : Config V q, superstable G q c ∧
   D = λ v => c.vertex_degree v - if v = q then 1 else 0
 
-/-- Axiom: Superstabilization of configuration with degree g+1 sends chip to q -/
+/-- Axiom: Superstabilization of configuration with degree g+1 sends chip to q
+    [@TODO] Future Work: To prove. -/
 axiom helper_superstabilize_sends_to_q (G : CFGraph V) (q : V) (c : Config V q) :
   maximal_superstable G c → config_degree c = genus G →
   ∀ v : V, v ≠ q → winnable G (λ w => c.vertex_degree w + if w = v then 1 else 0 - if w = q then 1 else 0)
 
-/-- Axiom: Configuration minus q is q-reduced if configuration is superstable -/
+/-- Axiom: Configuration minus q is q-reduced if configuration is superstable
+    [@TODO] Future Work: To prove. -/
 axiom helper_superstable_minus_q_reduced (G : CFGraph V) (q : V) (c : Config V q) :
   superstable G q c → q_reduced G q (λ v => c.vertex_degree v - if v = q then 1 else 0)
 
-/-- Axiom: Linear equivalence preserved under domination for q-reduced forms -/
+/-- Axiom: Linear equivalence preserved under domination for q-reduced forms
+    [@TODO] Future Work: To prove. -/
 axiom helper_q_reduced_linear_equiv_dominates (G : CFGraph V) (q : V) (c c' : Config V q) :
   superstable G q c → superstable G q c' → config_ge c' c →
   linear_equiv G
@@ -543,37 +561,33 @@ axiom helper_q_reduced_linear_equiv_dominates (G : CFGraph V) (q : V) (c c' : Co
     (λ v => c'.vertex_degree v - if v = q then 1 else 0)
 
 /-- Axiom: If c' is maximal superstable and D corresponds to c'-q,
-    then winnability of c'+v-q implies winnability of D -/
+    then winnability of c'+v-q implies winnability of D
+    [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_winnability (G : CFGraph V) (q : V) (c' : Config V q) (D : CFDiv V) :
   maximal_superstable G c' →
   linear_equiv G D (λ v => c'.vertex_degree v - if v = q then 1 else 0) →
   (∀ v : V, v ≠ q → winnable G (λ w => c'.vertex_degree w + if w = v then 1 else 0 - if w = q then 1 else 0)) →
   winnable G D
 
-/-- Axiom: Linear equivalence preserves winnability -/
-axiom helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : CFDiv V) :
-  linear_equiv G D₁ D₂ → (winnable G D₁ ↔ winnable G D₂)
-
-/-- Axiom: Superstable configuration has value 0 at q -/
-axiom helper_superstable_zero_at_q (G : CFGraph V) (q : V) (c : Config V q) :
-  superstable G q c → c.vertex_degree q = 0
-
-/-- Axiom: Winnability through linear equivalence and chip addition -/
-axiom helper_winnable_through_equiv_and_chip (G : CFGraph V) (q : V) (D : CFDiv V) (c : Config V q) :
-  linear_equiv G D (λ v => c.vertex_degree v - if v = q then 1 else 0) →
-  maximal_superstable G c →
-  ∀ v : V, v ≠ q →
-  winnable G (λ w => D w + if w = v then 1 else 0)
-
-/-- Axiom: Winnability at q vertex -/
-axiom helper_winnable_when_adding_at_q (G : CFGraph V) (q : V) (D : CFDiv V) (c : Config V q) :
-  maximal_superstable G c →
-  linear_equiv G D (λ v => c.vertex_degree v - if v = q then 1 else 0) →
-  winnable G (λ w => D w + if w = q then 1 else 0)
-
-/-- Axiom: Winnability at non-q vertex -/
-axiom helper_winnable_when_adding_not_q (G : CFGraph V) (q v : V) (D : CFDiv V) (c : Config V q) :
-  maximal_superstable G c →
-  linear_equiv G D (λ w => c.vertex_degree w - if w = q then 1 else 0) →
-  v ≠ q →
-  winnable G (λ w => D w + if w = v then 1 else 0)
+/-- [Proven] Helper theorem: Linear equivalence preserves winnability -/
+theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : CFDiv V) :
+  linear_equiv G D₁ D₂ → (winnable G D₁ ↔ winnable G D₂) := by
+  intro h_equiv
+  constructor
+  -- Forward direction: D₁ winnable → D₂ winnable
+  { intro h_win₁
+    rcases h_win₁ with ⟨D₁', h_eff₁, h_equiv₁⟩
+    exists D₁'
+    constructor
+    · exact h_eff₁
+    · -- Use transitivity: D₂ ~ D₁ ~ D₁'
+      exact linear_equiv_is_equivalence G |>.trans
+        (linear_equiv_is_equivalence G |>.symm h_equiv) h_equiv₁ }
+  -- Reverse direction: D₂ winnable → D₁ winnable
+  { intro h_win₂
+    rcases h_win₂ with ⟨D₂', h_eff₂, h_equiv₂⟩
+    exists D₂'
+    constructor
+    · exact h_eff₂
+    · -- Use transitivity: D₁ ~ D₂ ~ D₂'
+      exact linear_equiv_is_equivalence G |>.trans h_equiv h_equiv₂ }

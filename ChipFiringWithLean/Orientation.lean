@@ -225,10 +225,6 @@ def is_acyclic (G : CFGraph V) (O : Orientation G) : Prop :=
     | (some u, some v) => u = v
     | _ => False
 
-/-- A maximal superstable configuration has no legal firings and dominates all other superstable configs -/
-def maximal_superstable {q : V} (G : CFGraph V) (c : Config V q) : Prop :=
-  superstable G q c ∧ ∀ c' : Config V q, superstable G q c' → config_ge c' c
-
 /-- The divisor associated with an orientation assigns indegree - 1 to each vertex -/
 def divisor_of_orientation (G : CFGraph V) (O : Orientation G) : CFDiv V :=
   λ v => indeg G O v - 1

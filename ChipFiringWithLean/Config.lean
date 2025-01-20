@@ -55,3 +55,32 @@ def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
     c(v) < outdeg_S(v), meaning firing S would make v negative. -/
 def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
   ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.vertex_degree S v < c.vertex_degree v
+
+/-- Axiom defining that if a configuration c is superstable on graph G with sink vertex q,
+    then the number of chips at q must be 0. This property follows from the general definition
+    of superstability because: if q had any positive number of chips, then those chips could
+    potentially be fired/redistributed, but superstable by definition have no legal firings possible.
+-/
+axiom superstable_zero_at_q (G : CFGraph V) (q : V) (c : Config V q) :
+  superstable G q c → c.vertex_degree q = 0
+
+/-- A maximal superstable configuration has no legal firings and dominates all other superstable configs -/
+def maximal_superstable {q : V} (G : CFGraph V) (c : Config V q) : Prop :=
+  superstable G q c ∧ ∀ c' : Config V q, superstable G q c' → config_ge c' c
+
+/-- Axiom: Defining winnability of configurations through linear equivalence and chip addition.
+    Used to show that adding a chip at any non-q vertex results in a winnable configuration
+    when starting from a linearly equivalent divisor to a maximal superstable configuration. -/
+axiom winnable_through_equiv_and_chip (G : CFGraph V) (q : V) (D : CFDiv V) (c : Config V q) :
+  linear_equiv G D (λ v => c.vertex_degree v - if v = q then 1 else 0) →
+  maximal_superstable G c →
+  ∀ v : V, v ≠ q →
+  winnable G (λ w => D w + if w = v then 1 else 0)
+
+/-- Axiom: Defining a special case of winnability when adding a chip at the distinguished vertex q.
+    Demonstrates that adding a chip at q to a divisor linearly equivalent to a maximal
+    superstable configuration results in a winnable configuration. -/
+axiom winnable_when_adding_at_q (G : CFGraph V) (q : V) (D : CFDiv V) (c : Config V q) :
+  maximal_superstable G c →
+  linear_equiv G D (λ v => c.vertex_degree v - if v = q then 1 else 0) →
+  winnable G (λ w => D w + if w = q then 1 else 0)

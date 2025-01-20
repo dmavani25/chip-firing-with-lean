@@ -276,7 +276,7 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
       -- Use linear equivalence to transfer winnability to D'
       have h_win_D' := (helper_linear_equiv_preserves_winnability G D D' h_equiv).mp h_win
       -- Get value at q for c (must be 0 since superstable)
-      have h_c_q := helper_superstable_zero_at_q G q c h_max.1
+      have h_c_q := superstable_zero_at_q G q c h_max.1
       -- Show D' q = -1
       have h_q_neg : D' q = -1 := by
         rw [h_form]
@@ -299,12 +299,12 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
           rw [h_form] at h_equiv
           exact h_equiv
         rw [hv]
-        exact helper_winnable_when_adding_at_q G q D c h_max h_equiv' }
+        exact winnable_when_adding_at_q G q D c h_max h_equiv' }
       { -- Case v ≠ q: Use superstabilization
         have h_equiv' : linear_equiv G D (λ v => c.vertex_degree v - if v = q then 1 else 0) := by
           rw [h_form] at h_equiv
           exact h_equiv
-        exact helper_winnable_through_equiv_and_chip G q D c h_equiv' h_max v hv } } }
+        exact winnable_through_equiv_and_chip G q D c h_equiv' h_max v hv } } }
 
 /-- [Proven] Proposition 4.1.13: Combined (1) and (2)-/
 theorem superstable_and_maximal_unwinnable (G : CFGraph V) (q : V)
