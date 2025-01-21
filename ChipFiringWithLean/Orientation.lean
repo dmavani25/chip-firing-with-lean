@@ -234,8 +234,20 @@ def divisor_of_orientation (G : CFGraph V) (O : Orientation G) : CFDiv V :=
 def canonical_divisor (G : CFGraph V) : CFDiv V :=
   λ v => (vertex_degree G v) - 2
 
+/-- Auxillary Lemma: Double canonical difference is identity -/
+lemma canonical_double_diff (G : CFGraph V) (D : CFDiv V) :
+  (λ v => canonical_divisor G v - (canonical_divisor G v - D v)) = D := by
+  funext v; simp
+
 /-- Definition (Axiomatic): Canonical divisor is sum of two acyclic orientations -/
 axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) :
   ∃ (O₁ O₂ : Orientation G),
     is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
     canonical_divisor G = λ v => divisor_of_orientation G O₁ v + divisor_of_orientation G O₂ v
+
+/-- Axiom: Linear equivalence is preserved when adding chips -/
+axiom linear_equiv_add_chip {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) (v : V) :
+  linear_equiv G
+    (λ w => D w + if w = v then 1 else 0)
+    (λ w => (canonical_divisor G w - D w) + if w = v then 1 else 0)

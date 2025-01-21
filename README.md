@@ -116,6 +116,9 @@ This project is licensed under the [MIT License](LICENSE).
 - R. Wang, J. Zhang, Y. Jia, R. Pan, S. Diao, R. Pi, and T. Zhang, *TheoremLlama: Transforming General-Purpose LLMs into Lean4 Experts*, arXiv preprint, https://arxiv.org/abs/2407.03203, 2024.
 - V. Kiss and L. Tóthmérész, *Chip-firing games on Eulerian digraphs and NP-hardness of computing the rank of a divisor on a graph*, Discrete Applied Mathematics, vol. 193, pp. 48–56, Oct. 2015. DOI: http://dx.doi.org/10.1016/j.dam.2015.04.030.
 
+### Article & Blog Links
+- [Terence Tao AMS Post on Machine Assisted Proofs](https://www.ams.org/journals/notices/202501/noti3041/noti3041.html?adat=January%202025&trk=3041&pdfissue=202501&pdffile=rnoti-p6.pdf&cat=none&type=.html&utm_source=Informz&utm_medium=email&utm_campaign=Informz%20Mailing&_zs=x9GnR1&_zl=7A3f7)
+
 ---
 
 ### Acknowledgments

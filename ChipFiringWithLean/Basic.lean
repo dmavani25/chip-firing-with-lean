@@ -74,6 +74,12 @@ instance : Coe (V → ℤ) (CFDiv V) where
   simp [sub_apply, add_apply]
   ring
 
+/-- Lemma: Lambda form of divisor subtraction equals standard form -/
+lemma divisor_sub_eq_lambda (G : CFGraph V) (D₁ D₂ : CFDiv V) :
+  (λ v => D₁ v - D₂ v) = D₁ - D₂ := by
+  funext v
+  simp [sub_apply]
+
 -- Number of edges between two vertices as an integer
 def num_edges (G : CFGraph V) (v w : V) : ℕ :=
   ↑(Multiset.card (G.edges.filter (λ e => e = (v, w) ∨ e = (w, v))))

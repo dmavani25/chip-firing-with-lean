@@ -36,6 +36,12 @@ def orientation_to_config (G : CFGraph V) (O : Orientation G) (q : V)
 def genus (G : CFGraph V) : ℤ :=
   Multiset.card G.edges - Fintype.card V + 1
 
+/-- Axiom: A maximal unwinnable divisor has degree g-1
+    This is shown in Proposition 4.1.13(2) of Corry & Perkinson's "Divisors and Sandpiles" -/
+axiom maximal_unwinnable_deg {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) :
+  maximal_unwinnable G D → deg D = genus G - 1
+
 /-- A divisor has rank -1 if it is not winnable -/
 def rank_eq_neg_one_wrt_winnability (G : CFGraph V) (D : CFDiv V) : Prop :=
   ¬(winnable G D)

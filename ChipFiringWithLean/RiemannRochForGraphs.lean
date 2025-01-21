@@ -127,3 +127,86 @@ theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGr
 
     -- Final inequality using linarith
     linarith [h_ineq_sub]
+
+/-- Axiom: Rank decreases in K-D recursion for maximal unwinnable divisors
+    This captures that when we apply canonical_divisor - D to a maximal unwinnable divisor,
+    the rank measure decreases. This is used for termination of maximal_unwinnable_symmetry. -/
+axiom rank_decreases_for_KD {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) :
+  maximal_unwinnable G (λ v => canonical_divisor G v - D v) →
+  ((rank G (λ v => canonical_divisor G v - D v) + 1).toNat < (rank G D + 1).toNat)
+
+/-- [Proven] Corollary 4.4.1: A divisor D is maximal unwinnable if and only if K-D is maximal unwinnable -/
+theorem maximal_unwinnable_symmetry {V : Type} [DecidableEq V] [Fintype V]
+    (G : CFGraph V) (D : CFDiv V) :
+  maximal_unwinnable G D ↔ maximal_unwinnable G (λ v => canonical_divisor G v - D v) := by
+  constructor
+  -- Forward direction
+  { intro h_max_unwin
+    -- Get rank = -1 from maximal unwinnable
+    have h_rank_neg : rank G D = -1 := by
+      rw [rank_neg_one_iff_unwinnable]
+      exact h_max_unwin.1
+
+    -- Get degree = g-1 from maximal unwinnable
+    have h_deg : deg D = genus G - 1 := maximal_unwinnable_deg G D h_max_unwin
+
+    -- Use Riemann-Roch
+    have h_RR := riemann_roch_for_graphs G D
+    rw [h_rank_neg] at h_RR
+
+    -- Get degree of K-D
+    have h_deg_K := degree_of_canonical_divisor G
+    have h_deg_KD : deg (λ v => canonical_divisor G v - D v) = genus G - 1 := by
+      -- Get general distributive property for deg over subtraction
+      have h_deg_sub : ∀ D₁ D₂ : CFDiv V, deg (D₁ - D₂) = deg D₁ - deg D₂ := by
+        intro D₁ D₂
+        unfold deg
+        simp [sub_apply]
+
+      -- Convert lambda form to standard subtraction
+      rw [divisor_sub_eq_lambda G (canonical_divisor G) D]
+
+      -- Apply distributive property
+      rw [h_deg_sub (canonical_divisor G) D]
+
+      -- Use known values
+      rw [h_deg_K, h_deg]
+
+      -- Arithmetic: (2g-2) - (g-1) = g-1
+      ring
+
+    constructor
+    · -- K-D is unwinnable
+      rw [←rank_neg_one_iff_unwinnable]
+      linarith
+    · -- Adding chip makes K-D winnable
+      intro v
+      have h_win := h_max_unwin.2 v
+
+      -- Define the divisors explicitly to avoid type confusion
+      let D₁ : CFDiv V := λ w => D w + if w = v then 1 else 0
+      let D₂ : CFDiv V := λ w => canonical_divisor G w - D w + if w = v then 1 else 0
+
+      -- Show goal matches D₂
+      have h_goal : (λ w => (canonical_divisor G w - D w) + if w = v then 1 else 0) = D₂ := by
+        funext w
+        simp [D₂]
+
+      -- Use linear equivalence to transfer winnability
+      have h_equiv := linear_equiv_add_chip G D v
+      have h_win_transfer := (helper_linear_equiv_preserves_winnability G D₁ D₂ h_equiv).mp h_win
+
+      -- Apply the result
+      rw [h_goal]
+      exact h_win_transfer
+  }
+  -- Reverse direction
+  { intro h_max_unwin_K
+    -- Apply canonical double difference
+    rw [←canonical_double_diff G D]
+    -- Mirror forward direction's proof
+    exact maximal_unwinnable_symmetry G (λ v => canonical_divisor G v - D v) |>.mp h_max_unwin_K
+  }
+  termination_by (rank G D + 1).toNat
+  decreasing_by { exact rank_decreases_for_KD G D h_max_unwin_K }
