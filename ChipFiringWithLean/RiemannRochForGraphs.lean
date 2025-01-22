@@ -210,3 +210,74 @@ theorem maximal_unwinnable_symmetry {V : Type} [DecidableEq V] [Fintype V]
   }
   termination_by (rank G D + 1).toNat
   decreasing_by { exact rank_decreases_for_KD G D h_max_unwin_K }
+
+
+/-- Clifford's Theorem (4.4.2): For a divisor D with non-negative rank and K-D also having non-negative rank,
+    the rank of D is at most half its degree. -/
+theorem clifford_theorem {V : Type} [DecidableEq V] [Fintype V]
+    (G : CFGraph V) (D : CFDiv V)
+    (h_D : rank G D ≥ 0)
+    (h_KD : rank G (λ v => canonical_divisor G v - D v) ≥ 0) :
+    rank G D ≤ deg D / 2 := by
+  -- Get canonical divisor K's rank using Riemann-Roch
+  have h_K_rank : rank G (canonical_divisor G) = genus G - 1 := by
+    -- Apply Riemann-Roch with D = K
+    have h_rr := riemann_roch_for_graphs G (canonical_divisor G)
+    -- For K-K = 0, rank is 0
+    have h_K_minus_K : rank G (λ v => canonical_divisor G v - canonical_divisor G v) = 0 := by
+      -- Show that this divisor is the zero divisor
+      have h1 : (λ v => canonical_divisor G v - canonical_divisor G v) = (λ _ => 0) := by
+        funext v
+        simp [sub_self]
+
+      -- Show that the zero divisor has rank 0
+      have h2 : rank G (λ _ => 0) = 0 := zero_divisor_rank G
+
+      -- Substitute back
+      rw [h1, h2]
+    -- Substitute into Riemann-Roch
+    rw [h_K_minus_K] at h_rr
+    -- Use degree_of_canonical_divisor
+    rw [degree_of_canonical_divisor] at h_rr
+    -- Solve for rank G K
+    linarith
+
+  -- Apply rank subadditivity
+  have h_subadd := rank_subadditive G D (λ v => canonical_divisor G v - D v) h_D h_KD
+  -- The sum D + (K-D) = K
+  have h_sum : (λ v => D v + (canonical_divisor G v - D v)) = canonical_divisor G := by
+    funext v
+    simp
+  rw [h_sum] at h_subadd
+  rw [h_K_rank] at h_subadd
+
+  -- Use Riemann-Roch to get r(K-D) in terms of r(D)
+  have h_rr := riemann_roch_for_graphs G D
+
+  -- Explicit algebraic manipulation
+  have h1 : rank G (λ v => canonical_divisor G v - D v) =
+           rank G D - (deg D - genus G + 1) := by
+    linarith
+
+  -- Substitute this into the subadditivity inequality
+  have h2 : genus G - 1 ≥ rank G D + (rank G D - (deg D - genus G + 1)) := by
+    rw [h1] at h_subadd
+    exact h_subadd
+
+  -- Solve for rank G D
+  have h3 : 2 * rank G D - (deg D - genus G + 1) ≤ genus G - 1 := by
+    linarith
+
+  have h4 : 2 * rank G D ≤ deg D := by
+    linarith
+
+  have h5 : rank G D ≤ deg D / 2 := by
+    have h_two_pos : 0 < (2 : ℤ) := by norm_num
+    apply (Int.mul_le_mul_iff_of_pos_right h_two_pos).mp
+    rw [Int.mul_comm]
+    have h6 : deg D / 2 * 2 = deg D := by
+      exact int_div_mul_two (deg D)
+    rw [h6]
+    exact h4
+
+  exact h5

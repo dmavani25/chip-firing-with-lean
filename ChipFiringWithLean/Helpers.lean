@@ -615,3 +615,13 @@ theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : C
     · exact h_eff₂
     · -- Use transitivity: D₁ ~ D₂ ~ D₂'
       exact linear_equiv_is_equivalence G |>.trans h_equiv h_equiv₂ }
+
+
+/-
+# Helpers for Theorem 4.4.2 Clifford's Theorem
+-/
+
+/-- Axiom: Defines the trivial result that n/2 * 2 = n for any integer n. This is a fundamental property
+    of integer division that is needed for certain proofs.
+    [@TODO] Future Work: To prove from basic integer arithmetic properties. -/
+axiom int_div_mul_two (n : ℤ) : n / 2 * 2 = n

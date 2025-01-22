@@ -105,6 +105,9 @@ axiom rank_spec (G : CFGraph V) (D : CFDiv V) :
     exists_unwinnable_removal G D k.toNat ∧
     ∀ k' : ℕ, k' > k.toNat → ¬(rank_geq G D k'))
 
+/-- Axiomatic Definition: The zero divisor has rank 0 -/
+axiom zero_divisor_rank (G : CFGraph V) : rank G (λ _ => 0) = 0
+
 /-- Helpful corollary: rank = -1 exactly when divisor is not winnable -/
 theorem rank_neg_one_iff_unwinnable (G : CFGraph V) (D : CFDiv V) :
   rank G D = -1 ↔ ¬(winnable G D) := by
