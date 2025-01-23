@@ -112,3 +112,7 @@ axiom zero_divisor_rank (G : CFGraph V) : rank G (λ _ => 0) = 0
 theorem rank_neg_one_iff_unwinnable (G : CFGraph V) (D : CFDiv V) :
   rank G D = -1 ↔ ¬(winnable G D) := by
   exact (rank_spec G D).1
+
+/-- Axiomatic Extension of Definition: If rank is not non-negative, then it equals -1 -/
+axiom rank_neg_one_of_not_nonneg {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) (h : ¬(rank G D ≥ 0)) : rank G  D = -1

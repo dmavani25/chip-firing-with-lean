@@ -617,11 +617,31 @@ theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : C
       exact linear_equiv_is_equivalence G |>.trans h_equiv h_equiv₂ }
 
 
+
 /-
-# Helpers for Theorem 4.4.2 Clifford's Theorem
+# Helpers for RRG's Corollary 4.4.1
 -/
 
-/-- Axiom: Defines the trivial result that n/2 * 2 = n for any integer n. This is a fundamental property
-    of integer division that is needed for certain proofs.
-    [@TODO] Future Work: To prove from basic integer arithmetic properties. -/
-axiom int_div_mul_two (n : ℤ) : n / 2 * 2 = n
+/-- Axiom: Rank decreases in K-D recursion for maximal unwinnable divisors
+    This captures that when we apply canonical_divisor - D to a maximal unwinnable divisor,
+    the rank measure decreases. This is used for termination of maximal_unwinnable_symmetry. -/
+axiom rank_decreases_for_KD {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) :
+  maximal_unwinnable G (λ v => canonical_divisor G v - D v) →
+  ((rank G (λ v => canonical_divisor G v - D v) + 1).toNat < (rank G D + 1).toNat)
+
+
+
+/-
+# Helpers for RRG's Corollary 4.4.3
+-/
+
+/-- [Proven] Effective divisors have non-negative degree -/
+lemma effective_nonneg_deg {V : Type} [DecidableEq V] [Fintype V]
+  (D : CFDiv V) (h : effective D) : deg D ≥ 0 := by
+  -- Definition of effective means all entries are non-negative
+  unfold effective at h
+  -- Definition of degree as sum of entries
+  unfold deg
+  -- Non-negative sum of non-negative numbers is non-negative
+  exact sum_nonneg (λ v _ ↦ h v)

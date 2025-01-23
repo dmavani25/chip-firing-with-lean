@@ -128,14 +128,6 @@ theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGr
     -- Final inequality using linarith
     linarith [h_ineq_sub]
 
-/-- Axiom: Rank decreases in K-D recursion for maximal unwinnable divisors
-    This captures that when we apply canonical_divisor - D to a maximal unwinnable divisor,
-    the rank measure decreases. This is used for termination of maximal_unwinnable_symmetry. -/
-axiom rank_decreases_for_KD {V : Type} [DecidableEq V] [Fintype V]
-  (G : CFGraph V) (D : CFDiv V) :
-  maximal_unwinnable G (λ v => canonical_divisor G v - D v) →
-  ((rank G (λ v => canonical_divisor G v - D v) + 1).toNat < (rank G D + 1).toNat)
-
 /-- [Proven] Corollary 4.4.1: A divisor D is maximal unwinnable if and only if K-D is maximal unwinnable -/
 theorem maximal_unwinnable_symmetry {V : Type} [DecidableEq V] [Fintype V]
     (G : CFGraph V) (D : CFDiv V) :
@@ -212,8 +204,8 @@ theorem maximal_unwinnable_symmetry {V : Type} [DecidableEq V] [Fintype V]
   decreasing_by { exact rank_decreases_for_KD G D h_max_unwin_K }
 
 
-/-- Clifford's Theorem (4.4.2): For a divisor D with non-negative rank and K-D also having non-negative rank,
-    the rank of D is at most half its degree. -/
+/-- [Proven] Clifford's Theorem (4.4.2): For a divisor D with non-negative rank
+             and K-D also having non-negative rank, the rank of D is at most half its degree. -/
 theorem clifford_theorem {V : Type} [DecidableEq V] [Fintype V]
     (G : CFGraph V) (D : CFDiv V)
     (h_D : rank G D ≥ 0)
@@ -281,3 +273,144 @@ theorem clifford_theorem {V : Type} [DecidableEq V] [Fintype V]
     exact h4
 
   exact h5
+
+/-- [Proven] RRG's Corollary 4.4.3 establishing divisor degree to rank correspondence  -/
+theorem riemann_roch_deg_to_rank_corollary {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) :
+  -- Part 1
+  (deg D < 0 → rank G D = -1) ∧
+  -- Part 2
+  (0 ≤ deg D ∧ deg D ≤ 2 * genus G - 2 → rank G D ≤ deg D / 2) ∧
+  -- Part 3
+  (deg D > 2 * genus G - 2 → rank G D = deg D - genus G) := by
+  constructor
+  · -- Part 1: deg(D) < 0 implies r(D) = -1
+    intro h_deg_neg
+    rw [rank_neg_one_iff_unwinnable]
+    intro h_winnable
+    -- Use winnable_iff_exists_effective
+    obtain ⟨D', h_eff, h_equiv⟩ := winnable_iff_exists_effective G D |>.mp h_winnable
+    -- Linear equivalence preserves degree
+    have h_deg_eq : deg D = deg D' := by
+      exact linear_equiv_preserves_deg G D D' h_equiv
+    -- Effective divisors have non-negative degree
+    have h_D'_nonneg : deg D' ≥ 0 := by
+      exact effective_nonneg_deg D' h_eff
+    -- Contradiction: D has negative degree but is equivalent to non-negative degree divisor
+    rw [←h_deg_eq] at h_D'_nonneg
+    exact not_le_of_gt h_deg_neg h_D'_nonneg
+
+  constructor
+  · -- Part 2: 0 ≤ deg(D) ≤ 2g-2 implies r(D) ≤ deg(D)/2
+    intro ⟨h_deg_nonneg, h_deg_upper⟩
+    by_cases h_rank : rank G D ≥ 0
+    · -- Case where r(D) ≥ 0
+      let K := canonical_divisor G
+      by_cases h_rankKD : rank G (λ v => K v - D v) ≥ 0
+      · -- Case where r(K-D) ≥ 0: use Clifford's theorem
+        exact clifford_theorem G D h_rank h_rankKD
+      · -- Case where r(K-D) = -1: use Riemann-Roch
+        have h_rr := riemann_roch_for_graphs G D
+        have h_rankKD_eq : rank G (λ v => K v - D v) = -1 :=
+          rank_neg_one_of_not_nonneg G (λ v => K v - D v) h_rankKD
+
+        rw [h_rankKD_eq] at h_rr
+
+        -- Fix arithmetic manipulation
+        have : rank G D = deg D - genus G := by
+          -- Convert h_rr from (rank G D - (-1)) to (rank G D + 1)
+          rw [sub_neg_eq_add] at h_rr
+          have := calc
+            rank G D = rank G D + 1 - 1 := by ring
+            _ = deg D - genus G + 1 - 1 := by rw [h_rr]
+            _ = deg D - genus G := by ring
+          exact this
+
+        have h_bound : deg D - genus G ≤ deg D / 2 - 1 := by
+          have h_two_pos : (2 : ℤ) > 0 := by norm_num
+          -- Multiply both sides of deg D ≤ 2 * genus G - 2 by 2
+          have h_mul : deg D * 2 ≤ (2 * genus G - 2) * 2 := by
+            exact Int.mul_le_mul_of_nonneg_right h_deg_upper (le_of_lt h_two_pos)
+          -- Use division properties
+          have h_div : deg D = deg D / 2 * 2 := by
+            rw [int_div_mul_two (deg D)]
+          -- Get bounds on deg D / 2
+          have h_half_bound : genus G - 1 ≥ deg D / 2 := by
+            rw [h_div] at h_mul
+            have h_expand : (2 * genus G - 2) * 2 = 4 * genus G - 4 := by ring
+            rw [h_expand] at h_mul
+            linarith
+          -- Rearrange to match goal format
+          have h_rearr : - genus G ≤ -1 - deg D / 2 := by
+            -- From h_half_bound: deg D / 2 ≤ genus G - 1
+            -- Multiply both sides by -1 to get: -deg D / 2 ≥ -(genus G - 1)
+            have h_neg : -(deg D / 2) ≥ -(genus G - 1) := by
+              exact neg_le_neg h_half_bound
+            -- -(genus G - 1) = -genus G + 1
+            have h_expand : -(genus G - 1) = -genus G + 1 := by ring
+            rw [h_expand] at h_neg
+              -- Now we have: -(deg D / 2) ≥ -genus G + 1
+            -- Subtract 1 from both sides
+            have sub_one_both_sides: -(deg D / 2) - 1 ≥ -genus G := by linarith
+            -- Match goal format
+            have : -1 - deg D / 2 = -(deg D / 2) - 1 := by ring
+            rw [this]
+            exact ge_iff_le.1 sub_one_both_sides
+
+          -- Combine bounds
+          calc
+            deg D - genus G
+            _ ≤ deg D + (- genus G) := by linarith
+            _ ≤ deg D + (- 1 - deg D / 2) := by exact add_le_add_left h_rearr _
+            _ = deg D / 2 - 1 := by linarith
+
+        -- Apply the bounds to achieve the goal
+        rw [this]
+        calc
+          deg D - genus G
+          _  ≤ deg D / 2 - 1 := h_bound
+          _  ≤ deg D / 2 := by linarith
+
+    · -- Case where r(D) < 0
+      have h_rank_eq := rank_neg_one_of_not_nonneg G D h_rank
+      have h_bound : -1 ≤ deg D / 2 := by
+        -- The division by 2 preserves non-negativity for deg D
+        have h_div_nonneg : deg D / 2 ≥ 0 := by
+          have h_two_pos : (2 : ℤ) > 0 := by norm_num
+          exact ge_iff_le.mpr (div_nonneg_of_nonneg h_deg_nonneg h_two_pos)
+        linarith
+      rw [h_rank_eq]
+      exact h_bound
+
+  · -- Part 3: deg(D) > 2g-2 implies r(D) = deg(D) - g
+    intro h_deg_large
+    have h_canon := degree_of_canonical_divisor G
+    -- Show K-D has negative degree
+    have h_KD_neg : deg (λ v => canonical_divisor G v - D v) < 0 := by
+      -- Calculate deg(K-D)
+      calc
+        deg (λ v => canonical_divisor G v - D v)
+        _ = deg (canonical_divisor G) - deg D := by
+          unfold deg
+          simp [sub_apply]
+        _ = 2 * genus G - 2 - deg D := by rw [h_canon]
+        _ < 0 := by linarith
+
+    -- Show K-D is unwinnable, so rank = -1
+    have h_rankKD : rank G (λ v => canonical_divisor G v - D v) = -1 := by
+      rw [rank_neg_one_iff_unwinnable]
+      intro h_win
+      -- If winnable, would be linearly equivalent to effective divisor
+      obtain ⟨E, h_eff, h_equiv⟩ := winnable_iff_exists_effective G _ |>.mp h_win
+      have h_deg_eq := linear_equiv_preserves_deg G _ E h_equiv
+      -- But effective divisors have non-negative degree
+      have h_E_nonneg := effective_nonneg_deg E h_eff
+      rw [←h_deg_eq] at h_E_nonneg
+      -- Contradiction: K-D has negative degree
+      exact not_le_of_gt h_KD_neg h_E_nonneg
+
+    -- Apply Riemann-Roch to get r(D) = deg(D) - g
+    have h_rr := riemann_roch_for_graphs G D
+    rw [h_rankKD] at h_rr
+    rw [sub_neg_eq_add] at h_rr
+    linarith

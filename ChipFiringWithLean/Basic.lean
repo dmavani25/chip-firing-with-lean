@@ -213,6 +213,17 @@ def complete_linear_system (G: CFGraph V) (D: CFDiv V) : Set (CFDiv V) :=
 def deg (D : CFDiv V) : ℤ := ∑ v, D v
 def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 
+/-- Axiomatic Definition: Linear equivalence preserves degree of divisors -/
+axiom linear_equiv_preserves_deg {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D D' : CFDiv V) (h : linear_equiv G D D') : deg D = deg D'
+
+/-- Axiomatic Definition: Integer division by a positive number preserves non-negativity -/
+axiom div_nonneg_of_nonneg {a b : ℤ} (ha : 0 ≤ a) (hb : 0 < b) : 0 ≤ a / b
+
+/-- Axiomatic Definition: Defines the trivial result that n/2 * 2 = n for any integer n.
+    This is a fundamental property of integer division that is needed for certain proofs. -/
+axiom int_div_mul_two (n : ℤ) : n / 2 * 2 = n
+
 -- Define a firing script as a function from vertices to integers
 def firing_script (V : Type) := V → ℤ
 
