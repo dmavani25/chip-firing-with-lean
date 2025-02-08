@@ -617,6 +617,19 @@ theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : C
       exact linear_equiv_is_equivalence G |>.trans h_equiv h_equiv₂ }
 
 
+/-
+# Helpers for Proposition 4.1.14
+-/
+
+/-- Helper lemma: Source vertices have equal indegree (zero) when v = q -/
+lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
+    (G : CFGraph V) (O₁ O₂ : Orientation G) (q v : V)
+    (h_src₁ : is_source G O₁ q = true) (h_src₂ : is_source G O₂ q = true)
+    (hv : v = q) :
+    indeg G O₁ v = indeg G O₂ v := by
+  rw [hv]
+  rw [source_indeg_zero O₁ q h_src₁]
+  rw [source_indeg_zero O₂ q h_src₂]
 
 /-
 # Helpers for RRG's Corollary 4.4.1

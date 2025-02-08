@@ -319,3 +319,27 @@ theorem superstable_and_maximal_unwinnable (G : CFGraph V) (q : V)
      D' = λ v => c.vertex_degree v - if v = q then 1 else 0) := by
   exact ⟨maximal_superstable_config_prop G q c,
          maximal_unwinnable_char G q D⟩
+
+/-- [Proven] Proposition 4.1.14: Key results about maximal unwinnable divisors:
+    1) There is an injection from acyclic orientations with source q to maximal unwinnable q-reduced divisors,
+       where an orientation O maps to the divisor D(O) - q where D(O) assigns indegree to each vertex. (Surjection proof deferred)
+    2) Any maximal unwinnable divisor has degree equal to genus - 1.-/
+theorem acyclic_orientation_maximal_unwinnable_correspondence_and_degree
+    {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) :
+    (Function.Injective (λ (O : {O : Orientation G // is_acyclic G O ∧ is_source G O q}) =>
+      λ v => (indeg G O.val v) - if v = q then 1 else 0)) ∧
+    (∀ D : CFDiv V, maximal_unwinnable G D → deg D = genus G - 1) := by
+  constructor
+  { -- Part 1: Injection proof
+    intros O₁ O₂ h_eq
+    have h_indeg : ∀ v : V, indeg G O₁.val v = indeg G O₂.val v := by
+      intro v
+      have := congr_fun h_eq v
+      by_cases hv : v = q
+      · exact helper_source_indeg_eq_at_q G O₁.val O₂.val q v O₁.prop.2 O₂.prop.2 hv
+      · simp [hv] at this
+        exact this
+    exact Subtype.ext (acyclic_orientation_unique_by_indeg O₁.val O₂.val O₁.prop.1 O₂.prop.1 h_indeg)
+  }
+  { -- Part 2: Degree characterization
+    exact maximal_unwinnable_deg G }
