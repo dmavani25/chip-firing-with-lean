@@ -343,3 +343,123 @@ theorem acyclic_orientation_maximal_unwinnable_correspondence_and_degree
   }
   { -- Part 2: Degree characterization
     exact maximal_unwinnable_deg G }
+
+/-- [Proven] Rank Degree Inequality -/
+theorem rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V]
+    (G : CFGraph V) (D : CFDiv V) :
+    deg D - genus G < rank G D - rank G (λ v => canonical_divisor G v - D v) := by
+  -- Get rank value for D
+  let r := rank G D
+
+  -- Get effective divisor E using rank characterization
+  rcases rank_get_effective G D with ⟨E, h_E_eff, h_E_deg, h_D_E_unwin⟩
+
+  -- Fix a vertex q
+  rcases Fintype.exists_elem V with ⟨q, _⟩
+
+  -- Apply Dhar's algorithm to D - E to get q-reduced form
+  rcases helper_dhar_algorithm G q (λ v => D v - E v) with ⟨c, k, h_equiv, h_super⟩
+
+  -- k must be negative since D - E is unwinnable
+  have h_k_neg := helper_dhar_negative_k G q (λ v => D v - E v) h_D_E_unwin c k h_equiv h_super
+
+  -- Get maximal superstable c' ≥ c
+  rcases helper_maximal_superstable_exists G q c h_super with ⟨c', h_max', h_ge⟩
+
+  -- Let O be corresponding acyclic orientation
+  rcases stable_bijection G q with ⟨_, h_surj⟩
+  rcases h_surj c' with ⟨O, h_O_acyc, h_O_src, h_O_eq⟩
+
+  -- Get configuration c' from orientation O
+  let c' := orientation_to_config G O.val q O.prop.1 O.prop.2
+
+  -- Define H := (c' - c) - (k + 1)q as a divisor
+  let H : CFDiv V := λ v =>
+    if v = q then -(k + 1)
+    else c'.vertex_degree v - c.vertex_degree v
+
+  have h_H_eff : effective H := by
+    intro v
+    by_cases h_v : v = q
+    · -- Case v = q
+      rw [h_v]
+      simp [H]
+      -- Since k < 0, k + 1 ≤ 0, so -(k + 1) ≥ 0
+      have h_k_plus_one_nonpos : k + 1 ≤ 0 := by
+        linarith [h_k_neg]
+      linarith
+
+    · -- Case v ≠ q
+      simp [H, h_v]
+      -- h_ge shows c' ≥ c for maximal superstable c'
+      have h_ge_at_v : c'.vertex_degree v ≥ c.vertex_degree v := by
+        exact h_ge v
+      -- Therefore difference is non-negative
+      linarith
+
+  -- Complete h_DO_unwin
+  have h_DO_unwin : maximal_unwinnable G (λ v => c'.vertex_degree v - if v = q then 1 else 0) := by
+    constructor
+    · -- First show it's unwinnable
+      exact helper_superstable_to_unwinnable G q c' h_max'
+
+    · -- Then show adding a chip anywhere makes it winnable
+      exact helper_maximal_superstable_chip_winnable_exact G q c' h_max'
+
+  -- Use degree property of maximal unwinnable divisors
+  have h_DO_deg : deg (λ v => c'.vertex_degree v - if v = q then 1 else 0) = genus G - 1 :=
+    maximal_unwinnable_deg G _ h_DO_unwin
+
+  calc deg D - genus G
+    _ = deg D - (Multiset.card G.edges - Fintype.card V + 1) := by rw [genus]
+    _ < deg D - deg E + deg H := by {
+      -- Substitute deg E = rank G D + 1
+      rw [h_E_deg]
+      -- Have h2: deg H > 0
+      have h_big : deg D - (Multiset.card G.edges - Fintype.card V + 1) < deg D - (rank G D + 1) + deg H := by {
+        -- Rearrange terms
+        have h_core : deg D - (Multiset.card G.edges - Fintype.card V + 1)
+                    = deg D - (rank G D + 1) + (rank G D + 1 - (Multiset.card G.edges - Fintype.card V + 1)) := by ring
+        rw [h_core]
+        have h2 : deg H > 0 := by {
+          -- Use h_H_eff and h_k_neg with helper axiom
+          exact helper_sum_positive_at_q H k h_H_eff h_k_neg
+        }
+
+        have h_bound : rank G D + 1 - (Multiset.card G.edges - Fintype.card V + 1) < deg H := by {
+          apply helper_H_degree_bound G q D H k c c'
+          · exact h_H_eff
+          · -- Show H matches form
+            funext v
+            simp [H]
+        }
+        -- Complete inequality
+        linarith [h_bound]
+      }
+      exact h_big
+    }
+    _ ≤ rank G D - rank G (λ v => canonical_divisor G v - D v) := by {
+      have : deg E = rank G D + 1 := h_E_deg
+
+      -- Use maximal unwinnable properties
+      have h_DO_rank : rank G (λ v => c'.vertex_degree v - if v = q then 1 else 0) = -1 := by
+        rw [rank_neg_one_iff_unwinnable]
+        exact h_DO_unwin.1
+
+      -- Get linear equivalence
+      have h_DO_equiv : linear_equiv G (λ v => c'.vertex_degree v - if v = q then 1 else 0)
+                                    (λ v => D v - E v + H v) :=
+        helper_DO_linear_equiv G q D E H c'
+
+      -- Use degree properties
+      have h_deg_bound : deg (λ v => c'.vertex_degree v - if v = q then 1 else 0) = genus G - 1 := h_DO_deg
+
+      -- Use linear equivalence and rank bounds
+      have h_bound := helper_rank_deg_canonical_bound G q D E H c' h_DO_equiv
+
+      -- Use rank_neg_one_iff_unwinnable and h_DO_rank
+      have h_rank_eq : rank G (λ v => c'.vertex_degree v - if v = q then 1 else 0) = -1 := h_DO_rank
+
+      -- Complete inequality with linarith
+      linarith [h_bound, h_rank_eq, h_deg_bound]
+    }

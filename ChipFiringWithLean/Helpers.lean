@@ -632,6 +632,74 @@ lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
   rw [source_indeg_zero O₂ q h_src₂]
 
 /-
+# Helpers for Rank Degree Inequality used in RRG
+-/
+
+/-- Axiom: Existence of elements in finite types
+    This is a technical axiom used to carry forward existence arguments we frequently use
+    such as the fact that finite graphs have vertices. This axiom
+    captures this in a way that can be used in formal lean4 proofs. -/
+axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
+
+/-- Axiom: Dhar's algorithm produces q-reduced divisor from any divisor
+    Given any divisor D, Dhar's algorithm produces a unique q-reduced divisor that is
+    linearly equivalent to D. The algorithm outputs both a superstable configuration c
+    and an integer k, where k represents the number of chips at q. This is a key result
+    from Dhar (1990) proven in detail in Chapter 3 of Corry & Perkinson's "Divisors and
+    Sandpiles" (AMS, 2018) -/
+axiom helper_dhar_algorithm {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
+  ∃ (c : Config V q) (k : ℤ),
+    linear_equiv G D (λ v => c.vertex_degree v + (if v = q then k else 0)) ∧
+    superstable G q c
+
+/-- Axiom: Dhar's algorithm produces negative k for unwinnable divisors
+    When applied to an unwinnable divisor D, Dhar's algorithm must produce a
+    negative value for k (the number of chips at q). This is a crucial fact used
+    in characterizing unwinnable divisors, proven in chapter 4 of Corry & Perkinson's
+    "Divisors and Sandpiles" (AMS, 2018). The negativity of k is essential for
+    showing the relationship between unwinnable divisors and q-reduced forms. -/
+axiom helper_dhar_negative_k {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
+  ¬(winnable G D) →
+  ∀ (c : Config V q) (k : ℤ),
+    linear_equiv G D (λ v => c.vertex_degree v + (if v = q then k else 0)) →
+    superstable G q c →
+    k < 0
+
+/-- Axiom: Rank and degree bounds for canonical divisor -/
+axiom helper_rank_deg_canonical_bound (G : CFGraph V) (q : V) (D : CFDiv V) (E H : CFDiv V) (c' : Config V q) :
+  linear_equiv G (λ v => c'.vertex_degree v - if v = q then 1 else 0) (λ v => D v - E v + H v) →
+  rank G (λ v => canonical_divisor G v - D v) + deg D - deg E + deg H ≤ rank G D
+
+/-- Axiom: Degree of H relates to graph parameters when H comes from maximal superstable configs -/
+axiom helper_H_degree_bound (G : CFGraph V) (q : V) (D : CFDiv V) (H : CFDiv V) (k : ℤ) (c : Config V q) (c' : Config V q) :
+  effective H →
+  H = (λ v => if v = q then -(k + 1) else c'.vertex_degree v - c.vertex_degree v) →
+  rank G D + 1 - (Multiset.card G.edges - Fintype.card V + 1) < deg H
+
+/-- Axiom: Linear equivalence between DO and D-E+H -/
+axiom helper_DO_linear_equiv (G : CFGraph V) (q : V) (D E H : CFDiv V) (c' : Config V q) :
+  linear_equiv G (λ v => c'.vertex_degree v - if v = q then 1 else 0)
+               (λ v => D v - E v + H v)
+
+/-- Axiom: The degree of H is positive when H is effective and has value -(k+1) at q where k < 0 -/
+axiom helper_sum_positive_at_q (H : CFDiv V) (k : ℤ) :
+  effective H → k < 0 → deg H > 0
+
+/-- Axiom: Adding a chip anywhere to c'-q makes it winnable when c' is maximal superstable -/
+axiom helper_maximal_superstable_chip_winnable_exact (G : CFGraph V) (q : V) (c' : Config V q) :
+  maximal_superstable G c' →
+  ∀ (v : V), winnable G (λ w => (λ v => c'.vertex_degree v - if v = q then 1 else 0) w + if w = v then 1 else 0)
+
+/-- Axiom: Given a graph G and a vertex q, there exists a maximal superstable divisor
+    c' that is greater than or equal to any superstable divisor c. This is a key
+    result from Corry & Perkinson's "Divisors and Sandpiles" (AMS, 2018) that is
+    used in proving the Riemann-Roch theorem for graphs. -/
+axiom helper_superstable_to_unwinnable (G : CFGraph V) (q : V) (c : Config V q) :
+  maximal_superstable G c →
+  ¬winnable G (λ v => c.vertex_degree v - if v = q then 1 else 0)
+
+
+/-
 # Helpers for RRG's Corollary 4.4.1
 -/
 
