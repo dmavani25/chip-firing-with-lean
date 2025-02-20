@@ -8,6 +8,7 @@ import Mathlib.Algebra.BigOperators.Group.Finset
 import ChipFiringWithLean.Basic
 import ChipFiringWithLean.Config
 import ChipFiringWithLean.Orientation
+import Paperproof
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true

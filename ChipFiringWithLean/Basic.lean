@@ -5,6 +5,7 @@ import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset
+import Paperproof
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
