@@ -52,7 +52,7 @@ def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
   diff ∈ AddSubgroup.closure (Set.range (λ v => λ w => if w = v then -vertex_degree G v else num_edges G v w))
 
 /-- A configuration is superstable if it has no legal nonempty set-firings.
-    Equivalently, for all nonempty S ⊆ V\{q}, there exists v ∈ S such that
+    Equivalently, for all nonempty S ⊆ V \ {q}, there exists v ∈ S such that
     c(v) < outdeg_S(v), meaning firing S would make v negative. -/
 def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
   ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.vertex_degree S v < c.vertex_degree v
