@@ -218,8 +218,10 @@ def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 axiom linear_equiv_preserves_deg {V : Type} [DecidableEq V] [Fintype V]
   (G : CFGraph V) (D D' : CFDiv V) (h : linear_equiv G D D') : deg D = deg D'
 
-/-- Axiomatic Definition: Integer division by a positive number preserves non-negativity -/
-axiom div_nonneg_of_nonneg {a b : ℤ} (ha : 0 ≤ a) (hb : 0 < b) : 0 ≤ a / b
+/-- Lemma: Integer division by a positive number preserves non-negativity -/
+lemma div_nonneg_of_nonneg {a b : ℤ} (ha : 0 ≤ a) (hb : 0 < b) : 0 ≤ a / b := by
+  apply (Int.div_nonneg_iff_of_pos hb).mpr
+  exact ha
 
 /-- Axiomatic Definition: Defines the trivial result that n/2 * 2 = n for any integer n.
     This is a fundamental property of integer division that is needed for certain proofs. -/
