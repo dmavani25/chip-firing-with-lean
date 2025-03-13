@@ -76,10 +76,6 @@ axiom vertex_measure_decreasing (G : CFGraph V) (O : Orientation G) (v : V) :
   (univ.filter (λ w => is_directed_edge G O w u)).card <
   (univ.filter (λ w => is_directed_edge G O w v)).card
 
-/-- Axiom: Negation of is_source implies source is false -/
-axiom source_not_true_implies_false (G : CFGraph V) (O : Orientation G) (v : V) :
-  ¬is_source G O v = true → is_source G O v = false
-
 /-- Axiom: If u is in the filter set for vertex_level calculation of v,
     then there is a directed edge from u to v -/
 axiom filter_implies_directed_edge (G : CFGraph V) (O : Orientation G) (v u : V) :
@@ -99,7 +95,7 @@ termination_by
   Finset.card (univ.filter (λ u => is_directed_edge G O u v))
 decreasing_by {
   apply vertex_measure_decreasing G O v
-  · exact source_not_true_implies_false G O v h
+  · exact eq_false_of_ne_true h
   · apply filter_implies_directed_edge G O v u
     exact vertex_filter_membership G O v u
 }
