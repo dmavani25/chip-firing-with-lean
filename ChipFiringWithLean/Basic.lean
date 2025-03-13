@@ -15,7 +15,6 @@ set_option linter.unusedVariables false
 set_option trace.split.failure true
 set_option linter.unusedSectionVars false
 
-
 open Multiset Finset
 
 -- Assume V is a finite type with decidable equality
@@ -287,7 +286,8 @@ def apply_laplacian (G : CFGraph V) (σ : firing_script V) (D: CFDiv V) : CFDiv 
 -- Define q-reduced divisors
 def q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) : Prop :=
   (∀ v ∈ {v | v ≠ q}, D v ≥ 0) ∧
-  (∀ S ⊆ {v | v ≠ q}, S ≠ ∅ → ∃ v ∈ S, D v < vertex_degree G v - finset_sum (Finset.univ.filter (λ v' => v' ≠ v)) (λ w => num_edges G w v))
+  (∀ S : Finset V, S ⊆ (Finset.univ.filter (λ v => v ≠ q)) → S.Nonempty →
+    ∃ v ∈ S, D v < finset_sum (Finset.univ.filter (λ w => ¬(w ∈ S))) (λ w => num_edges G v w))
 
 -- Define the ordering of divisors
 def divisor_order (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
