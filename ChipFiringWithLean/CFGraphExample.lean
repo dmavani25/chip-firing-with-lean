@@ -30,7 +30,13 @@ def exampleEdges : Multiset (Person × Person) :=
     (Person.C, Person.E)
   ]
 theorem loopless_example_edges : isLoopless exampleEdges = true := by rfl
+theorem loopless_prop_example_edges : isLoopless_prop exampleEdges := by
+  unfold isLoopless_prop
+  decide
 theorem undirected_example_edges : isUndirected exampleEdges = true := by rfl
+theorem undirected_prop_example_edges : isUndirected_prop exampleEdges := by
+  unfold isUndirected_prop
+  decide
 
 -- Example usage for Person type in a graph with a loop
 def edgesWithLoop : Multiset (Person × Person) :=

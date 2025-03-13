@@ -343,7 +343,8 @@ theorem riemann_roch_deg_to_rank_corollary {V : Type} [DecidableEq V] [Fintype V
         -- The division by 2 preserves non-negativity for deg D
         have h_div_nonneg : deg D / 2 ≥ 0 := by
           have h_two_pos : (2 : ℤ) > 0 := by norm_num
-          exact ge_iff_le.mpr (div_nonneg_of_nonneg h_deg_nonneg h_two_pos)
+          rw [Int.div_nonneg_iff_of_pos h_two_pos]
+          exact h_deg_nonneg
         linarith
       rw [h_rank_eq]
       exact h_bound

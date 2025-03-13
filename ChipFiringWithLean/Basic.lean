@@ -5,6 +5,10 @@ import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset
+
+import Init.Core
+import Init.NotationExtra
+
 import Paperproof
 
 set_option linter.unusedVariables false
@@ -21,9 +25,57 @@ variable {V : Type} [DecidableEq V] [Fintype V]
 def isLoopless (edges : Multiset (V × V)) : Bool :=
   Multiset.card (edges.filter (λ e => (e.1 = e.2))) = 0
 
+def isLoopless_prop (edges : Multiset (V × V)) : Prop :=
+  ∀ v, (v, v) ∉ edges
+
+lemma isLoopless_prop_bool_equiv (edges : Multiset (V × V)) :
+    isLoopless_prop edges ↔ isLoopless edges = true := by
+  unfold isLoopless_prop isLoopless
+  constructor
+  · intro h
+    apply decide_eq_true
+    rw [Multiset.card_eq_zero]
+    simp only [Multiset.eq_zero_iff_forall_not_mem]
+    intro e he
+    have h_eq : e.1 = e.2 := by
+      exact Multiset.mem_filter.mp he |>.2
+    have he' : e ∈ edges := by
+      exact Multiset.mem_filter.mp he |>.1
+    cases e with
+    | mk a b =>
+      simp at h_eq
+      have : (a, b) = (a, a) := by rw [h_eq]
+      rw [this] at he'
+      exact h a he'
+
+  · intro h
+    intro v
+    intro hv
+    apply False.elim
+    have h_filter : (v, v) ∈ Multiset.filter (λ e => e.1 = e.2) edges := by
+      apply Multiset.mem_filter.mpr
+      constructor
+      · exact hv
+      · simp
+
+    have h_card : Multiset.card (Multiset.filter (λ e => e.1 = e.2) edges) > 0 := by
+      apply Multiset.card_pos_iff_exists_mem.mpr
+      exists (v, v)
+
+    have h_eq : Multiset.card (Multiset.filter (λ e => e.1 = e.2) edges) = 0 := by
+      -- Use the fact that isLoopless edges = true means the cardinality is 0
+      unfold isLoopless at h
+      -- Since h : decide (...) = true, we extract the underlying proposition
+      apply of_decide_eq_true h
+
+    linarith
+
 -- Define a set of edges to be undirected only if it doesn't have both (v, w) and (w, v)
 def isUndirected (edges : Multiset (V × V)) : Bool :=
   Multiset.card (edges.filter (λ e => (e.2, e.1) ∈ edges)) = 0
+
+def isUndirected_prop (edges : Multiset (V × V)) : Prop :=
+  ∀ v1 v2, (v1, v2) ∈ edges → (v2, v1) ∉ edges
 
 -- Multigraph with undirected and loopless edges
 structure CFGraph (V : Type) [DecidableEq V] [Fintype V] :=
@@ -157,32 +209,25 @@ def linear_equiv (G : CFGraph V) (D D' : CFDiv V) : Prop :=
 theorem linear_equiv_is_equivalence (G : CFGraph V) : Equivalence (linear_equiv G) := by
   apply Equivalence.mk
   -- Reflexivity
-  {
-    intro D
+  · intro D
     unfold linear_equiv
     have h_zero : D - D = 0 := by simp
     rw [h_zero]
     exact AddSubgroup.zero_mem _
-  }
+
   -- Symmetry
-  {
-    intros D D' h
+  · intros D D' h
     unfold linear_equiv at *
     have h_symm : D - D' = -(D' - D) := by simp [sub_eq_add_neg, neg_sub]
     rw [h_symm]
     exact AddSubgroup.neg_mem _ h
-  }
+
   -- Transitivity
-  {
-    intros D D' D'' h1 h2
+  · intros D D' D'' h1 h2
     unfold linear_equiv at *
-    have h_trans : D'' - D = (D'' - D') + (D' - D) := by
-      { -- Use the simp tactic to simplify the expression
-        simp
-      }
+    have h_trans : D'' - D = (D'' - D') + (D' - D) := by simp
     rw [h_trans]
     exact AddSubgroup.add_mem _ h2 h1
-  }
 
 -- Define divisor class determined by a divisor
 def divisor_class (G : CFGraph V) (D : CFDiv V) : Set (CFDiv V) :=
@@ -217,11 +262,6 @@ def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 /-- Axiomatic Definition: Linear equivalence preserves degree of divisors -/
 axiom linear_equiv_preserves_deg {V : Type} [DecidableEq V] [Fintype V]
   (G : CFGraph V) (D D' : CFDiv V) (h : linear_equiv G D D') : deg D = deg D'
-
-/-- Lemma: Integer division by a positive number preserves non-negativity -/
-lemma div_nonneg_of_nonneg {a b : ℤ} (ha : 0 ≤ a) (hb : 0 < b) : 0 ≤ a / b := by
-  apply (Int.div_nonneg_iff_of_pos hb).mpr
-  exact ha
 
 /-- Axiomatic Definition: Defines the trivial result that n/2 * 2 = n for any integer n.
     This is a fundamental property of integer division that is needed for certain proofs. -/
