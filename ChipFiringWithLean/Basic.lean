@@ -262,10 +262,6 @@ def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 axiom linear_equiv_preserves_deg {V : Type} [DecidableEq V] [Fintype V]
   (G : CFGraph V) (D D' : CFDiv V) (h : linear_equiv G D D') : deg D = deg D'
 
-/-- Axiomatic Definition: Defines the trivial result that n/2 * 2 = n for any integer n.
-    This is a fundamental property of integer division that is needed for certain proofs. -/
-axiom int_div_mul_two (n : ℤ) : n / 2 * 2 = n
-
 -- Define a firing script as a function from vertices to integers
 def firing_script (V : Type) := V → ℤ
 

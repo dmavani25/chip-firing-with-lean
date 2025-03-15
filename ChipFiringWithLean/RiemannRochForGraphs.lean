@@ -176,7 +176,7 @@ theorem clifford_theorem {V : Type} [DecidableEq V] [Fintype V]
     (G : CFGraph V) (D : CFDiv V)
     (h_D : rank G D ≥ 0)
     (h_KD : rank G (λ v => canonical_divisor G v - D v) ≥ 0) :
-    rank G D ≤ deg D / 2 := by
+    (rank G D : ℚ) ≤ (deg D : ℚ) / 2 := by
   -- Get canonical divisor K's rank using Riemann-Roch
   have h_K_rank : rank G (canonical_divisor G) = genus G - 1 := by
     -- Apply Riemann-Roch with D = K
@@ -229,14 +229,23 @@ theorem clifford_theorem {V : Type} [DecidableEq V] [Fintype V]
   have h4 : 2 * rank G D ≤ deg D := by
     linarith
 
-  have h5 : rank G D ≤ deg D / 2 := by
-    have h_two_pos : 0 < (2 : ℤ) := by norm_num
-    apply (Int.mul_le_mul_iff_of_pos_right h_two_pos).mp
-    rw [Int.mul_comm]
-    have h6 : deg D / 2 * 2 = deg D := by
-      exact int_div_mul_two (deg D)
-    rw [h6]
-    exact h4
+  have h5 : (rank G D : ℚ) ≤ (deg D : ℚ) / 2 := by
+    -- Convert to rational numbers and use algebraic properties
+    have h_cast : (2 : ℚ) * (rank G D : ℚ) ≤ (deg D : ℚ) := by
+      -- Cast integer inequality to rational
+      exact_mod_cast h4
+
+    -- Divide both sides by 2 directly using algebra
+    have h_two_pos : (0 : ℚ) < 2 := by norm_num
+
+    calc (rank G D : ℚ)
+      _  = (rank G D : ℚ) * (1 : ℚ) := by ring
+      _  = (rank G D : ℚ) * (2 / 2 : ℚ) := by norm_num
+      _  = (2 : ℚ) * (rank G D : ℚ) / 2 := by field_simp
+      _  ≤ (deg D : ℚ) / 2 := by
+          -- Use the fact that division by positive number preserves inequality
+          apply (div_le_div_right h_two_pos).mpr
+          exact h_cast
 
   exact h5
 
@@ -246,7 +255,7 @@ theorem riemann_roch_deg_to_rank_corollary {V : Type} [DecidableEq V] [Fintype V
   -- Part 1
   (deg D < 0 → rank G D = -1) ∧
   -- Part 2
-  (0 ≤ deg D ∧ deg D ≤ 2 * genus G - 2 → rank G D ≤ deg D / 2) ∧
+  (0 ≤ (deg D : ℚ) ∧ (deg D : ℚ) ≤ 2 * (genus G : ℚ) - 2 → (rank G D : ℚ) ≤ (deg D : ℚ) / 2) ∧
   -- Part 3
   (deg D > 2 * genus G - 2 → rank G D = deg D - genus G) := by
   constructor
@@ -282,8 +291,8 @@ theorem riemann_roch_deg_to_rank_corollary {V : Type} [DecidableEq V] [Fintype V
 
         rw [h_rankKD_eq] at h_rr
 
-        -- Fix arithmetic manipulation
-        have : rank G D = deg D - genus G := by
+        -- Arithmetic manipulation to get r(D) equality
+        have this : rank G D = deg D - genus G := by
           -- Convert h_rr from (rank G D - (-1)) to (rank G D + 1)
           rw [sub_neg_eq_add] at h_rr
           have := calc
@@ -292,50 +301,18 @@ theorem riemann_roch_deg_to_rank_corollary {V : Type} [DecidableEq V] [Fintype V
             _ = deg D - genus G := by ring
           exact this
 
-        have h_bound : deg D - genus G ≤ deg D / 2 - 1 := by
-          have h_two_pos : (2 : ℤ) > 0 := by norm_num
-          -- Multiply both sides of deg D ≤ 2 * genus G - 2 by 2
-          have h_mul : deg D * 2 ≤ (2 * genus G - 2) * 2 := by
-            exact Int.mul_le_mul_of_nonneg_right h_deg_upper (le_of_lt h_two_pos)
-          -- Use division properties
-          have h_div : deg D = deg D / 2 * 2 := by
-            rw [int_div_mul_two (deg D)]
-          -- Get bounds on deg D / 2
-          have h_half_bound : genus G - 1 ≥ deg D / 2 := by
-            rw [h_div] at h_mul
-            have h_expand : (2 * genus G - 2) * 2 = 4 * genus G - 4 := by ring
-            rw [h_expand] at h_mul
-            linarith
-          -- Rearrange to match goal format
-          have h_rearr : - genus G ≤ -1 - deg D / 2 := by
-            -- From h_half_bound: deg D / 2 ≤ genus G - 1
-            -- Multiply both sides by -1 to get: -deg D / 2 ≥ -(genus G - 1)
-            have h_neg : -(deg D / 2) ≥ -(genus G - 1) := by
-              exact neg_le_neg h_half_bound
-            -- -(genus G - 1) = -genus G + 1
-            have h_expand : -(genus G - 1) = -genus G + 1 := by ring
-            rw [h_expand] at h_neg
-              -- Now we have: -(deg D / 2) ≥ -genus G + 1
-            -- Subtract 1 from both sides
-            have sub_one_both_sides: -(deg D / 2) - 1 ≥ -genus G := by linarith
-            -- Match goal format
-            have : -1 - deg D / 2 = -(deg D / 2) - 1 := by ring
-            rw [this]
-            exact ge_iff_le.1 sub_one_both_sides
-
-          -- Combine bounds
-          calc
-            deg D - genus G
-            _ ≤ deg D + (- genus G) := by linarith
-            _ ≤ deg D + (- 1 - deg D / 2) := by exact add_le_add_left h_rearr _
-            _ = deg D / 2 - 1 := by linarith
-
-        -- Apply the bounds to achieve the goal
+        -- Apply the result
         rw [this]
-        calc
-          deg D - genus G
-          _  ≤ deg D / 2 - 1 := h_bound
-          _  ≤ deg D / 2 := by linarith
+
+        -- Show that deg D - genus G ≤ deg D / 2 using rational numbers
+        have h_bound : (deg D - genus G : ℚ) ≤ (deg D : ℚ) / 2 := by
+          linarith [h_deg_upper]
+
+        -- Make sure types match with explicit cast
+        have h_cast : (deg D - genus G : ℚ) = (↑(deg D - genus G) : ℚ) := by
+          exact_mod_cast rfl
+        rw [← h_cast]
+        exact h_bound
 
     · -- Case where r(D) < 0
       have h_rank_eq := rank_neg_one_of_not_nonneg G D h_rank
@@ -344,10 +321,17 @@ theorem riemann_roch_deg_to_rank_corollary {V : Type} [DecidableEq V] [Fintype V
         have h_div_nonneg : deg D / 2 ≥ 0 := by
           have h_two_pos : (2 : ℤ) > 0 := by norm_num
           rw [Int.div_nonneg_iff_of_pos h_two_pos]
-          exact h_deg_nonneg
+          -- Convert explicitly to the right type
+          have h : deg D ≥ 0 := by exact_mod_cast h_deg_nonneg
+          exact h
+
         linarith
       rw [h_rank_eq]
-      exact h_bound
+
+      -- Convert to rational numbers
+      have h_bound_rat : ((-1) : ℚ) ≤ (deg D : ℚ) / 2 := by linarith [h_bound]
+
+      exact h_bound_rat
 
   · -- Part 3: deg(D) > 2g-2 implies r(D) = deg(D) - g
     intro h_deg_large
