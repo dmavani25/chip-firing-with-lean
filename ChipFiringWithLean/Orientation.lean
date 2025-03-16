@@ -24,15 +24,14 @@ variable {V : Type} [DecidableEq V] [Fintype V]
 structure Orientation (G : CFGraph V) :=
   /-- The set of directed edges in the orientation -/
   (directed_edges : Multiset (V × V))
-  /-- Proof that each undirected edge corresponds to exactly one directed edge -/
-  (consistent : ∀ e ∈ G.edges, e ∈ directed_edges ∨ (e.snd, e.fst) ∈ directed_edges)
-
-/-- Reverse orientation swaps the direction of all edges by mapping each edge (u,v) to (v,u) -/
-def reverse_orientation (G : CFGraph V) (O : Orientation G) : Orientation G :=
-  ⟨O.directed_edges.map (λ e => (e.snd, e.fst)), λ e h => by
-    cases O.consistent e h with
-    | inl _ => exact Or.inr (Multiset.mem_map_of_mem _ ‹_›)
-    | inr _ => exact Or.inl (Multiset.mem_map_of_mem _ ‹_›)⟩
+  /-- Preserves edge counts between vertex pairs -/
+  (count_preserving : ∀ v w,
+    Multiset.count (v, w) G.edges + Multiset.count (w, v) G.edges =
+    Multiset.count (v, w) directed_edges + Multiset.count (w, v) directed_edges)
+  /-- No bidirectional edges in the orientation -/
+  (no_bidirectional : ∀ v w,
+    Multiset.count (v, w) directed_edges = 0 ∨
+    Multiset.count (w, v) directed_edges = 0)
 
 /-- Number of edges directed into a vertex under an orientation -/
 def indeg (G : CFGraph V) (O : Orientation G) (v : V) : ℕ :=
@@ -53,21 +52,6 @@ def is_sink (G : CFGraph V) (O : Orientation G) (v : V) : Bool :=
 /-- Helper function to check if two consecutive vertices form a directed edge -/
 def is_directed_edge (G : CFGraph V) (O : Orientation G) (u v : V) : Bool :=
   (u, v) ∈ O.directed_edges
-
-/-- Get all source vertices in an orientation -/
-def source_vertices (G : CFGraph V) (O : Orientation G) : Finset V :=
-  univ.filter (λ v => is_source G O v)
-
-/-- Axiom: Filtering edges preserves orientation consistency -/
-axiom filter_preserves_orientation_consistency (G : CFGraph V) (O : Orientation G) (v : V) :
-  ∀ e ∈ G.edges,
-    e ∈ O.directed_edges.filter (λ e => e.1 ≠ v ∧ e.2 ≠ v) ∨
-    (e.2, e.1) ∈ O.directed_edges.filter (λ e => e.1 ≠ v ∧ e.2 ≠ v)
-
-/-- Remove a vertex and its incident edges from an orientation -/
-def remove_vertex (G : CFGraph V) (O : Orientation G) (v : V) : Orientation G :=
-  ⟨O.directed_edges.filter (λ e => e.1 ≠ v ∧ e.2 ≠ v),
-   filter_preserves_orientation_consistency G O v⟩
 
 /-- Axiom: Well-foundedness of vertex levels -/
 axiom vertex_measure_decreasing (G : CFGraph V) (O : Orientation G) (v : V) :
@@ -100,22 +84,9 @@ decreasing_by {
     exact vertex_filter_membership G O v u
 }
 
-/-- Axiom: Graph has no directed cycles -/
-axiom acyclic_graph (G : CFGraph V) (O : Orientation G) :
-  ∀ v : V, vertex_level G O v < Fintype.card V
-
-/-- Axiom: Each non-source vertex has at least one incoming edge -/
-axiom non_source_has_incoming (G : CFGraph V) (O : Orientation G) (v : V) :
-  ¬is_source G O v → ∃ u : V, is_directed_edge G O u v
-
 /-- Vertices at a given level in the orientation -/
 def vertices_at_level (G : CFGraph V) (O : Orientation G) (l : ℕ) : Finset V :=
   univ.filter (λ v => vertex_level G O v = l)
-
-/-- Axiom: For any vertex v ≠ q in an orientation O where q is a source,
-    the indegree of v is at least 1 -/
-axiom non_source_positive_indeg (G : CFGraph V) (O : Orientation G) (q v : V) :
-  v ≠ q → is_source G O q → indeg G O v ≥ 1
 
 /-- Axiom: Indegree minus one is non-negative for non-source vertices -/
 axiom indeg_minus_one_nonneg (G : CFGraph V) (O : Orientation G) (q v : V) :
@@ -133,32 +104,9 @@ def config_of_source (G : CFGraph V) (O : Orientation G) (q : V)
       · exact indeg_minus_one_nonneg G O q v hv h_source
   }
 
-/-- Axiom: For list indexing with bounds checking -/
-axiom list_index_valid {α : Type} (l : List α) (i : Nat) (h : i < l.length) :
-  ∃ x : α, l.get ⟨i, h⟩ = x
-
 /-- Helper function for safe list access -/
 def list_get_safe {α : Type} (l : List α) (i : Nat) : Option α :=
   l.get? i
-
-/-- Axiom: For path properties -/
-axiom path_properties (G : CFGraph V) (O : Orientation G) (vs : List V) :
-  ∀ (i : Nat), i + 1 < vs.length →
-    match (list_get_safe vs i, list_get_safe vs (i + 1)) with
-    | (some u, some v) => is_directed_edge G O u v
-    | _ => False
-
-/-- Axiom: For vertex distinctness in paths -/
-axiom vertex_distinctness (G : CFGraph V) (O : Orientation G) (vs : List V) :
-  ∀ (i j : Nat), i < vs.length → j < vs.length → i ≠ j →
-    vs.getD i ≠ vs.getD j
-
-/-- Axiom: For vertex distinctness in paths -/
-axiom vertex_distinctness_equivalent_declaration (G : CFGraph V) (O : Orientation G) (vs : List V) :
-  ∀ (i j : Nat), i < vs.length → j < vs.length → i ≠ j →
-    match (list_get_safe vs i, list_get_safe vs j) with
-    | (some u, some v) => u ≠ v
-    | _ => True
 
 /-- A directed path in a graph under an orientation -/
 structure DirectedPath (G : CFGraph V) (O : Orientation G) where
@@ -196,13 +144,6 @@ structure DirectedCycle (G : CFGraph V) (O : Orientation G) :=
     match (vertices.get? i, vertices.get? j) with
     | (some u, some v) => u ≠ v
     | _ => True)
-
--- Axiom: Existence of directed paths between vertices -/
-axiom path_exists (G : CFGraph V) (O : Orientation G) (u v : V) :
-  ∃ (p : DirectedPath G O),
-    p.vertices.length > 0 ∧
-    p.vertices.get? 0 = some u ∧
-    p.vertices.get? (p.vertices.length - 1) = some v
 
 /-- Check if there are edges in both directions between two vertices -/
 def has_bidirectional_edges (G : CFGraph V) (O : Orientation G) (u v : V) : Prop :=
