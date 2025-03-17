@@ -150,9 +150,6 @@ theorem initial_not_effective : ¬effective initial_wealth := by {
   exact not_le.mpr h_lt hB
 }
 theorem initial_not_effective_bool : effective_bool initial_wealth = false := by rfl
--- Note: ¬effective_bool initial_wealth = true can't be resolved by rfl because
--- it requires both sides of the equation to be definitionally equal, and
--- the negation operator (¬) is not reducible to a simple syntactic equality.
 theorem after_W₃_firing_effective : effective_bool after_W₃_firing = true := by rfl
 
 -- Test Laplacian matrix values and symmetricity
