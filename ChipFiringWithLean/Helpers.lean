@@ -23,7 +23,7 @@ axiom helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
   ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
 
 /-- Axiom: Effectiveness preservation under linear equivalence (legal set-firings)
-    This is a fact that is directly used in Corollary 3.7 by Corry & Perkins (Divisors & Sandpiles) -/
+    This is a fact that is directly used in Corollary 3.7 by Corry & Perkinson (Divisors & Sandpiles) -/
 axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   linear_equiv G D₁ D₂ → effective D₁ → effective D₂
 
