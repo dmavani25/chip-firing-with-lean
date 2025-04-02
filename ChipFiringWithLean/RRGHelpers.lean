@@ -336,6 +336,43 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
           exact h_equiv
         exact winnable_through_equiv_and_chip G q D c h_equiv' h_max v hv } } }
 
+/-- Theorem: A maximal unwinnable divisor has degree g-1
+    This theorem now proven based on the characterizations above. -/
+theorem maximal_unwinnable_deg {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) :
+  maximal_unwinnable G D → deg D = genus G - 1 := by
+  intro h_max_unwin
+
+  rcases Fintype.exists_elem V with ⟨q, _⟩
+
+  have h_equiv_max_unwin := maximal_unwinnable_char G q D
+  rcases h_equiv_max_unwin.mp h_max_unwin with ⟨c, h_c_max_super, D', h_D'_qred, h_equiv_D_D', h_D'_eq⟩
+
+  have h_c_super : superstable G q c := h_c_max_super.1
+
+  -- Use the characterization theorem for config degree
+  have h_config_deg : config_degree c = genus G := by
+    have prop := maximal_superstable_config_prop G q c h_c_super -- Apply hypothesis first
+    exact prop.mp h_c_max_super -- Use the forward direction of the iff
+
+  have h_c_q_zero : c.vertex_degree q = 0 := superstable_zero_at_q G q c h_c_super
+
+  have h_deg_D' : deg D' = genus G - 1 := calc
+    deg D' = deg (λ v => c.vertex_degree v - if v = q then 1 else 0) := by rw [h_D'_eq]
+    _ = (∑ v, c.vertex_degree v) - (∑ v, if v = q then 1 else 0) := by {unfold deg; rw [Finset.sum_sub_distrib]}
+    _ = (∑ v, c.vertex_degree v) - 1 := by {rw [Finset.sum_ite_eq']; simp}
+    _ = (config_degree c + c.vertex_degree q) - 1 := by
+        have h_sum_c : ∑ v : V, c.vertex_degree v = config_degree c + c.vertex_degree q := by
+          unfold config_degree
+          rw [← Finset.sum_filter_add_sum_filter_not (s := Finset.univ) (p := λ v' => v' ≠ q)] -- Split sum based on v ≠ q
+          simp [Finset.sum_singleton, Finset.filter_eq'] -- Add Finset.filter_eq' hint
+        rw [h_sum_c]
+    _ = (genus G + 0) - 1 := by rw [h_config_deg, h_c_q_zero]
+    _ = genus G - 1 := by simp
+
+  have h_deg_eq : deg D = deg D' := linear_equiv_preserves_deg G D D' h_equiv_D_D'
+  rw [h_deg_eq, h_deg_D']
+
 /-- [Proven] Proposition 4.1.13: Combined (1) and (2)-/
 theorem superstable_and_maximal_unwinnable (G : CFGraph V) (q : V)
     (c : Config V q) (D : CFDiv V) :
@@ -345,6 +382,7 @@ theorem superstable_and_maximal_unwinnable (G : CFGraph V) (q : V)
      ∃ c : Config V q, maximal_superstable G c ∧
      ∃ D' : CFDiv V, q_reduced G q D' ∧ linear_equiv G D D' ∧
      D' = λ v => c.vertex_degree v - if v = q then 1 else 0) := by
+  -- This theorem now just wraps the two proven theorems above
   exact ⟨maximal_superstable_config_prop G q c,
          maximal_unwinnable_char G q D⟩
 
@@ -370,7 +408,10 @@ theorem acyclic_orientation_maximal_unwinnable_correspondence_and_degree
     exact Subtype.ext (acyclic_orientation_unique_by_indeg O₁.val O₂.val O₁.prop.1 O₂.prop.1 h_indeg)
   }
   { -- Part 2: Degree characterization
-    exact maximal_unwinnable_deg G }
+    -- This now correctly refers to the theorem defined above
+    intro D hD
+    exact maximal_unwinnable_deg G D hD
+  }
 
 /-- [Proven] Rank Degree Inequality -/
 theorem rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V]
