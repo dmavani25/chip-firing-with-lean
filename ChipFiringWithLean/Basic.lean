@@ -5,10 +5,6 @@ import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset
-import Mathlib.Data.Matrix.Basic -- For Matrix definitions and transpose (ᵀ)
-import Mathlib.Algebra.Group.Pi.Basic -- For scalar multiplication (•)
-import Mathlib.Algebra.BigOperators.Module -- For ∑ • notation
-import Mathlib.Data.Int.Order.Basic -- For max, inequalities
 
 import Init.Core
 import Init.NotationExtra
