@@ -57,7 +57,7 @@ def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
 def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
   ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.vertex_degree S v < c.vertex_degree v
 
-/-- Axiom defining that if a configuration c is superstable on graph G with sink vertex q,
+/-- Axiom: Defining that if a configuration c is superstable on graph G with sink vertex q,
     then the number of chips at q must be 0. This property follows from the general definition
     of superstability because: if q had any positive number of chips, then those chips could
     potentially be fired/redistributed, but superstable by definition have no legal firings possible.

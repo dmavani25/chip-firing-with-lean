@@ -70,20 +70,20 @@ axiom helper_orientation_determined_by_levels {G : CFGraph V}
           Only to be used to define a superstable configuration from an acyclic orientation with source q as a Prop.
 -/
 axiom helper_orientation_config_superstable (G : CFGraph V) (O : Orientation G) (q : V)
-    (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
-    superstable G q (orientation_to_config G O q h_acyc h_src)
+    (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
+    superstable G q (orientation_to_config G O q h_acyc h_unique_source)
 
 /- Axiom: Defining a reusable block for a configuration from an acyclic orientation with source q being maximal superstable
           Only to be used to define a maximal superstable configuration from an acyclic orientation with source q as a Prop.
 -/
 axiom helper_orientation_config_maximal (G : CFGraph V) (O : Orientation G) (q : V)
-    (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
-    maximal_superstable G (orientation_to_config G O q h_acyc h_src)
+    (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
+    maximal_superstable G (orientation_to_config G O q h_acyc h_unique_source)
 
 /-- [Proven] Helper lemma: Orientation to config preserves indegrees -/
 lemma orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
-    (h_acyclic : is_acyclic G O) (h_source : is_source G O q) (v : V) :
-    (orientation_to_config G O q h_acyclic h_source).vertex_degree v =
+    (h_acyclic : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) (v : V) :
+    (orientation_to_config G O q h_acyclic h_unique_source).vertex_degree v =
     if v = q then 0 else (indeg G O v : ℤ) - 1 := by
   -- This follows directly from the definition of config_of_source
   simp only [orientation_to_config] at *
@@ -115,22 +115,25 @@ theorem helper_config_to_orientation_unique (G : CFGraph V) (q : V)
     (h_acyc₂ : is_acyclic G O₂)
     (h_src₁ : is_source G O₁ q)
     (h_src₂ : is_source G O₂ q)
-    (h_eq₁ : orientation_to_config G O₁ q h_acyc₁ h_src₁ = c)
-    (h_eq₂ : orientation_to_config G O₂ q h_acyc₂ h_src₂ = c) :
+    (h_unique_source₁ : ∀ w, is_source G O₁ w → w = q)
+    (h_unique_source₂ : ∀ w, is_source G O₂ w → w = q)
+    (h_eq₁ : orientation_to_config G O₁ q h_acyc₁ h_unique_source₁ = c)
+    (h_eq₂ : orientation_to_config G O₂ q h_acyc₂ h_unique_source₂ = c) :
     O₁ = O₂ := by
   apply orientation_unique_by_indeg O₁ O₂ h_acyc₁ h_acyc₂
   intro v
 
-  have h_deg₁ := orientation_to_config_indeg G O₁ q h_acyc₁ h_src₁ v
-  have h_deg₂ := orientation_to_config_indeg G O₂ q h_acyc₂ h_src₂ v
+  have h_deg₁ := orientation_to_config_indeg G O₁ q h_acyc₁ h_unique_source₁ v
+  have h_deg₂ := orientation_to_config_indeg G O₂ q h_acyc₂ h_unique_source₂ v
 
-  have h_config_eq : (orientation_to_config G O₁ q h_acyc₁ h_src₁).vertex_degree v =
-                     (orientation_to_config G O₂ q h_acyc₂ h_src₂).vertex_degree v := by
+  have h_config_eq : (orientation_to_config G O₁ q h_acyc₁ h_unique_source₁).vertex_degree v =
+                     (orientation_to_config G O₂ q h_acyc₂ h_unique_source₂).vertex_degree v := by
     rw [h_eq₁, h_eq₂]
 
   by_cases hv : v = q
   · -- Case v = q: Both vertices are sources, so indegree is 0
     rw [hv]
+    -- Use the explicit source assumptions h_src₁ and h_src₂
     have h_zero₁ := source_indeg_zero O₁ q h_src₁
     have h_zero₂ := source_indeg_zero O₂ q h_src₂
     rw [h_zero₁, h_zero₂]
@@ -145,7 +148,7 @@ theorem helper_config_to_orientation_unique (G : CFGraph V) (q : V)
 
 /-- [Proven] Helper lemma to convert between configuration equality forms -/
 lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
-    {O₁ O₂ : {O : Orientation G // is_acyclic G O ∧ is_source G O q}}
+    {O₁ O₂ : {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}}
     (h : orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 =
          orientation_to_config G O₂.val q O₂.prop.1 O₂.prop.2) :
     orientation_to_config G O₂.val q O₂.prop.1 O₂.prop.2 =
@@ -167,17 +170,8 @@ axiom helper_maximal_superstable_exists (G : CFGraph V) (q : V) (c : Config V q)
     [@TODO] Future Work: To prove. -/
 axiom helper_maximal_superstable_orientation (G : CFGraph V) (q : V) (c : Config V q)
     (h_max : maximal_superstable G c) :
-    ∃ (O : Orientation G) (h_acyc : is_acyclic G O) (h_src : is_source G O q),
-      orientation_to_config G O q h_acyc h_src = c
-
-/-- Axiom: Maximal superstable configurations are uniquely determined by their orientations
-    [@TODO] Future Work: To prove. -/
-axiom helper_maximal_superstable_unique (G : CFGraph V) (q : V) (c : Config V q)
-  (h_max : maximal_superstable G c)
-  (O : Orientation G) (h_acyc : is_acyclic G O) (h_src : is_source G O q) :
-  orientation_to_config G O q h_acyc h_src = c →
-  ∀ (O' : Orientation G) (h_acyc' : is_acyclic G O' ) (h_src' : is_source G O' q),
-  orientation_to_config G O' q h_acyc' h_src' = c → O = O'
+    ∃ (O : Orientation G) (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q),
+      orientation_to_config G O q h_acyc h_unique_source = c
 
 /-- Axiom: If c' dominates c and c' is maximal superstable, then c = c'
     [@TODO] Future Work: To prove. -/

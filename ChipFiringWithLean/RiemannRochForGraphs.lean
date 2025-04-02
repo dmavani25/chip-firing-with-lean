@@ -35,12 +35,19 @@ theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGr
   -- Get maximal superstable c' ≥ c
   rcases helper_maximal_superstable_exists G q c h_super with ⟨c', h_max', h_ge⟩
 
-  -- Let O be corresponding acyclic orientation
+  -- Let O be corresponding acyclic orientation with unique source q (from bijection)
   rcases stable_bijection G q with ⟨_, h_surj⟩
-  rcases h_surj c' with ⟨O, h_O_acyc, h_O_src, h_O_eq⟩
+  -- O_subtype has type {O // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}
+  rcases h_surj c' with ⟨O_subtype, h_eq_c'⟩
 
-  -- Get configuration c' from orientation O
-  let c' := orientation_to_config G O.val q O.prop.1 O.prop.2
+  -- Get configuration c' from orientation O_subtype
+  -- O_subtype.val is the Orientation, O_subtype.prop.1 is acyclicity, O_subtype.prop.2 is uniqueness
+  let c'_config := orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2
+
+  -- Check consistency (assuming h_eq_c' means c' = c'_config)
+  -- Assuming the proof intended to use the configuration derived from the orientation
+  -- Let's rename c'_config to c' to match the original intent, assuming consistency.
+  let c' := orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2
 
   -- Define H := (c' - c) - (k + 1)q as a divisor
   let H : CFDiv V := λ v =>

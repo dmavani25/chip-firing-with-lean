@@ -410,6 +410,7 @@ def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
 /-- Axiom: Q-reduced form uniquely determines divisor class in the following sense:
     If two divisors D₁ and D₂ are both q-reduced and linearly equivalent,
     then they must be equal. This is a key uniqueness property that shows
-    every divisor class contains exactly one q-reduced representative. -/
+    every divisor class contains exactly one q-reduced representative.
+    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
 axiom q_reduced_unique_class (G : CFGraph V) (q : V) (D₁ D₂ : CFDiv V) :
   q_reduced G q D₁ ∧ q_reduced G q D₂ ∧ linear_equiv G D₁ D₂ → D₁ = D₂
