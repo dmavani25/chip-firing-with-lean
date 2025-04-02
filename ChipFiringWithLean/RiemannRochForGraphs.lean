@@ -159,7 +159,7 @@ theorem maximal_unwinnable_symmetry {V : Type} [DecidableEq V] [Fintype V]
         simp [D₂]
 
       -- Use linear equivalence to transfer winnability
-      have h_equiv := linear_equiv_add_chip G D v
+      have h_equiv := linear_equiv_add_chip G D v h_deg
       have h_win_transfer := (helper_linear_equiv_preserves_winnability G D₁ D₂ h_equiv).mp h_win
 
       -- Apply the result

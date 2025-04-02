@@ -208,10 +208,3 @@ axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : 
   ∃ (O₁ O₂ : Orientation G),
     is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
     canonical_divisor G = λ v => divisor_of_orientation G O₁ v + divisor_of_orientation G O₂ v
-
-/-- Axiom: Linear equivalence is preserved when adding chips -/
-axiom linear_equiv_add_chip {V : Type} [DecidableEq V] [Fintype V]
-  (G : CFGraph V) (D : CFDiv V) (v : V) :
-  linear_equiv G
-    (λ w => D w + if w = v then 1 else 0)
-    (λ w => (canonical_divisor G w - D w) + if w = v then 1 else 0)

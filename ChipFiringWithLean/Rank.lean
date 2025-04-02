@@ -117,3 +117,14 @@ theorem rank_neg_one_iff_unwinnable (G : CFGraph V) (D : CFDiv V) :
 /-- Axiomatic Extension of Definition: If rank is not non-negative, then it equals -1 -/
 axiom rank_neg_one_of_not_nonneg {V : Type} [DecidableEq V] [Fintype V]
   (G : CFGraph V) (D : CFDiv V) (h : ¬(rank G D ≥ 0)) : rank G  D = -1
+
+/-- Axiom: Linear equivalence is preserved when adding chips, provided deg D = g - 1
+    This makes sense because such a D is maximal unwinnable, and adding a chip to a maximal unwinnable divisor
+    is equivalent to adding a chip to the canonical divisor.
+    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
+axiom linear_equiv_add_chip {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) (v : V)
+  (h_deg : deg D = genus G - 1) :
+  linear_equiv G
+    (λ w => D w + if w = v then 1 else 0)
+    (λ w => (canonical_divisor G w - D w) + if w = v then 1 else 0)
