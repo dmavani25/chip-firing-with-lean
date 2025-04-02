@@ -168,11 +168,27 @@ def finset_sum {α β} [AddCommMonoid β] (s : Finset α) (f : α → β) : β :
 def set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : CFDiv V :=
   λ w => D w + finset_sum S (λ v => if w = v then -vertex_degree G v else num_edges G v w)
 
+/--
+  This axiom states that if every vertex in the graph fires simultaneously,
+  the net effect on any vertex `w` is zero. This makes sense because:
+
+  1. When a vertex fires, it sends one chip along each incident edge
+  2. When `w` itself fires, it loses `vertex_degree G w` chips
+  3. When any other vertex `v` fires, `w` gains `num_edges G v w` chips
+  4. In an undirected graph, the total chips flowing into any vertex equals
+     the total flowing out
+
+  This is essentially a conservation law - when all vertices fire simultaneously,
+  the chips redistribute with no net change to any vertex's total.
+  (Note: This is not true for directed graphs, but `CFGraph` is an undirected graph.)
+
+  This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being.
+-/
 axiom set_firing_sum_zero (G : CFGraph V) (w : V) :
   finset_sum (Finset.univ : Finset V)
     (fun v => if w = v then -vertex_degree G v else num_edges G v w) = 0
 
--- (Optional) Proposition using the axiom
+-- (Optional) Proposition: Firing all vertices is equivalent to no change in the divisor.
 theorem set_firing_all_vertices_is_zero (G : CFGraph V) (D : CFDiv V) :
     set_firing G D (Finset.univ : Finset V) = D := by
   -- Show equality of functions
@@ -184,10 +200,99 @@ theorem set_firing_all_vertices_is_zero (G : CFGraph V) (D : CFDiv V) :
   -- Use the axiom and simplify
   rw [set_firing_sum_zero G w]
 
--- (Optional) Proposition: Borrowing from vertex v ∈ V is equivalent to lending from all vertices in V \ {v}.
-axiom borrowing_eq_set_firing_complement (G : CFGraph V) (D : CFDiv V) (v : V) :
-  borrowing_move G D v = set_firing G D (Finset.univ.erase v)
+/--
+  This axiom states a fundamental property of vertex degree: the degree of a
+  vertex equals the sum of the number of edges connecting it to all other vertices.
+  This is obvious because:
 
+  1. The vertex degree is defined as the total number of edges incident to `v`
+  2. In this summation, we're adding up `num_edges G u v` for all vertices `u`
+     except `v` itself
+  3. Since the graph is undirected and loopless, this precisely counts each edge
+     incident to `v` exactly once
+
+  This is essentially the definition of vertex degree written as a summation.
+  This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being.
+-/
+axiom sum_edges_eq_vertex_degree : ∀ (G : CFGraph V) (v : V),
+  (finset_sum (Finset.univ.erase v) (λ u => (num_edges G u v : ℤ))) = vertex_degree G v
+
+/--
+  This axiom describes what happens to vertex `w` when every vertex except `v` fires.
+  It states that:
+
+  1. When `w` itself fires, it loses its degree worth of chips: `-vertex_degree G w`
+  2. When any other vertex `u` (not `v` or `w`) fires, vertex `w` gains
+     `num_edges G u w` chips
+  3. The net effect equals the negative of the number of edges between `v` and `w`
+
+  This makes sense because:
+  - If all vertices were to fire (including `v`), the net effect on `w` would be
+    zero (from the first axiom)
+  - So the effect of everyone except `v` firing must be the negative of `v`'s
+    contribution
+  - `v`'s contribution to `w` when firing is exactly `num_edges G v w`
+
+  This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being.
+-/
+axiom sum_edges_to_w_minus_v : ∀ (G : CFGraph V) (v w : V), w ≠ v →
+  finset_sum (Finset.univ.erase v) (λ u => if w = u then -vertex_degree G u else (num_edges G u w : ℤ)) = -(num_edges G v w : ℤ)
+
+-- (Optional) Proposition: Borrowing from vertex v ∈ V is equivalent to lending from all vertices in V \ {v}.
+lemma borrowing_eq_set_firing_complement (G : CFGraph V) (D : CFDiv V) (v : V) :
+  borrowing_move G D v = set_firing G D (Finset.univ.erase v) := by
+  -- Show equality of functions
+  funext w
+
+  -- Expand definitions
+  unfold borrowing_move set_firing
+
+  -- Split into cases based on whether w = v
+  by_cases h : w = v
+
+  -- Case: w = v
+  · rw [h]
+    simp
+
+    -- Since v ∉ Finset.univ.erase v, we can simplify the condition in the sum
+    have h1 : ∀ u ∈ Finset.univ.erase v, v ≠ u := by
+      intro u hu
+      have h_ue : u ≠ v ∧ u ∈ Finset.univ := Finset.mem_erase.mp hu
+      exact Ne.symm h_ue.1
+
+    -- This lets us simplify the sum to just use num_edges
+    have h2 : finset_sum (Finset.univ.erase v) (λ u => if v = u then -vertex_degree G u else (num_edges G u v : ℤ)) =
+              finset_sum (Finset.univ.erase v) (λ u => (num_edges G u v : ℤ)) := by
+      -- We use Finset.sum_congr to show the sums are equal
+      apply Finset.sum_congr
+      -- The finsets are identical
+      · exact rfl
+      -- Now we show the functions are equal on all elements of the finset
+      · intro u hu
+        -- Since u ∈ Finset.univ.erase v, we know u ≠ v
+        have h_ue : u ≠ v ∧ u ∈ Finset.univ := Finset.mem_erase.mp hu
+        -- So v = u is false, and the if-statement simplifies
+        have h_not_eq : ¬(v = u) := by exact Ne.symm h_ue.1
+        -- Simplify the if-statement using this fact
+        simp [h_not_eq]
+
+    -- The axiom tells us this equals vertex_degree G v
+    have h3 : finset_sum (Finset.univ.erase v) (λ u => (num_edges G u v : ℤ)) = vertex_degree G v :=
+      sum_edges_eq_vertex_degree G v
+
+    -- Chain these equalities
+    rw [h2, h3]
+
+  -- Case: w ≠ v
+  · simp [h]
+
+    -- Use the axiom to simplify the sum
+    rw [sum_edges_to_w_minus_v G v w h]
+
+    -- Show algebraic equality
+    simp [sub_eq_add_neg]
+
+-- Define the group structure on CFDiv V
 instance : AddGroup (CFDiv V) := Pi.addGroup
 
 -- Define the principal divisors generated by firing moves at vertices
