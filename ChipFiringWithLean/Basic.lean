@@ -295,9 +295,6 @@ lemma borrowing_eq_set_firing_complement (G : CFGraph V) (D : CFDiv V) (v : V) :
 -- Define the group structure on CFDiv V
 instance : AddGroup (CFDiv V) := Pi.addGroup
 
--- Explicitly provide the AddCommMonoid instance required for summation
-instance : AddCommMonoid (CFDiv V) := Pi.addCommMonoid
-
 -- Define the firing vector for a single vertex
 def firing_vector (G : CFGraph V) (v : V) : CFDiv V :=
   λ w => if w = v then -vertex_degree G v else num_edges G v w
@@ -309,12 +306,6 @@ def principal_divisors (G : CFGraph V) : AddSubgroup (CFDiv V) :=
 -- Lemma: Principal divisors contain the firing vector at a vertex
 lemma mem_principal_divisors_firing_vector (G : CFGraph V) (v : V) :
   firing_vector G v ∈ principal_divisors G := by
-  apply AddSubgroup.subset_closure
-  apply Set.mem_range_self
-
--- Lemma: Principal divisors contain the borrowing move at a vertex
-lemma mem_principal_divisors_basic (G : CFGraph V) (v : V) :
-  (λ w => if w = v then -vertex_degree G v else num_edges G v w) ∈ principal_divisors G := by
   apply AddSubgroup.subset_closure
   apply Set.mem_range_self
 
