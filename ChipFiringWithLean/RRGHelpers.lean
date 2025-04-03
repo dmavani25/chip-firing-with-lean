@@ -283,126 +283,128 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
   ∃ D' : CFDiv V, q_reduced G q D' ∧ linear_equiv G D D' ∧
   D' = λ v => c.vertex_degree v - if v = q then 1 else 0 := by
   constructor
-  { -- Forward direction
-    intro h_max
-    rcases helper_unique_q_reduced G q D with ⟨D', h_D'⟩
-    -- Use the forward direction of the new correspondence theorem
-    rcases (q_reduced_superstable_correspondence G q D').mp h_D'.1.2 with ⟨c, h_super, h_form⟩
-    have h_max_super : maximal_superstable G c := by
-      by_contra h
-      rcases helper_maximal_superstable_exists G q c h_super with ⟨c', h_max', h_ge⟩
-      let D'' := λ v => c'.vertex_degree v - if v = q then 1 else 0
-      -- Use the reverse direction of the new correspondence theorem
-      have h_qred' := (q_reduced_superstable_correspondence G q D'').mpr ⟨c', h_max'.1, rfl⟩
-      have h_equiv' := helper_q_reduced_linear_equiv_dominates G q c c' h_super h_max'.1 h_ge
-      have h_D_equiv_D'' : linear_equiv G D D'' := by
-        have h_D'_equiv_D'' : linear_equiv G D' D'' := by
-          rw [h_form]
-          exact h_equiv'
-        exact (linear_equiv_is_equivalence G).trans h_D'.1.1 h_D'_equiv_D''
-      have h_win := helper_superstabilize_sends_to_q G q c' h_max'
-                     (maximal_superstable_config_prop G q c' h_max'.1 |>.mp h_max')
-      have h_win_D := helper_maximal_superstable_winnability G q c' D h_max' h_D_equiv_D'' h_win
-      exact h_max.1 h_win_D
+  { -- Forward direction (⇒)
+    intro h_max_unwinnable_D -- Assume D is maximal unwinnable
+    -- Get the unique q-reduced representative D' for D
+    rcases helper_unique_q_reduced G q D with ⟨D', ⟨h_D_equiv_D', h_qred_D'⟩, _⟩
+    -- Show D' corresponds to some superstable c
+    rcases (q_reduced_superstable_correspondence G q D').mp h_qred_D' with ⟨c, h_super_c, h_form_D'_eq_c⟩
 
-    use c, h_max_super, D', h_D'.1.2, h_D'.1.1, h_form }
+    -- Prove that this c must be maximal superstable
+    have h_max_super_c : maximal_superstable G c := by
+      -- Prove by contradiction: Assume c is not maximal superstable
+      by_contra h_not_max_c
+      -- If c is superstable but not maximal, there exists a strictly dominating maximal c'
+      rcases helper_maximal_superstable_exists G q c h_super_c with ⟨c', h_max_c', h_ge_c'_c⟩
+      -- Define D'' based on the maximal superstable c'
+      let D'' := λ v => c'.vertex_degree v - if v = q then (1 : ℤ) else (0 : ℤ)
+      -- Show D'' is q-reduced (from correspondence with superstable c')
+      have h_qred_D'' := (q_reduced_superstable_correspondence G q D'').mpr ⟨c', h_max_c'.1, rfl⟩
 
-  { -- Reverse direction
-    intro h
-    rcases h with ⟨c, h_max, D', h_qred, h_equiv, h_form⟩ -- Assumptions extracted
+      -- Show D' is linearly equivalent to D''
+      have h_D'_equiv_D'' : linear_equiv G D' D'' := by
+        -- We know D' = form(c) (h_form_D'_eq_c)
+        -- We know form(c) ~ form(c') = D'' (helper_q_reduced_linear_equiv_dominates)
+        rw [h_form_D'_eq_c] -- Replace D' with form(c)
+        exact helper_q_reduced_linear_equiv_dominates G q c c' h_super_c h_max_c'.1 h_ge_c'_c
 
-    -- Define the delta function for convenience
-    let delta (v : V) : CFDiv V := λ w => if w = v then 1 else 0
+      -- Since D' and D'' are both q-reduced and linearly equivalent, they must be equal
+      have h_D'_eq_D'' : D' = D'' := by
+        apply q_reduced_unique_class G q D' D''
+        -- Provide the triple ⟨q_reduced D', q_reduced D'', D' ~ D''⟩
+        exact ⟨h_qred_D', h_qred_D'', h_D'_equiv_D''⟩
 
-    constructor -- Proving maximal_unwinnable G D requires two parts
+      -- Now relate c and c' using D' = D''
+      have h_lambda_eq : (λ v => c.vertex_degree v - if v = q then 1 else 0) = (λ v => c'.vertex_degree v - if v = q then 1 else 0) := by
+        rw [← h_form_D'_eq_c] -- LHS = D'
+        rw [h_D'_eq_D'']      -- Goal: D'' = RHS
+
+      -- This pointwise equality implies c = c'
+      have h_c_eq_c' : c = c' := by
+        -- Prove equality by showing fields are equal
+        cases c; cases c' -- Expose fields vertex_degree and non_negative_except_q
+        -- Use simp [mk.injEq] to reduce goal to field equality (proves non_negative_except_q equality automatically)
+        simp only [Config.mk.injEq]
+        -- Prove vertex_degree functions are equal using h_lambda_eq
+        funext v
+        have h_pointwise_eq := congr_fun h_lambda_eq v
+        -- Use Int.sub_right_inj to simplify the equality
+        rw [Int.sub_right_inj] at h_pointwise_eq
+        exact h_pointwise_eq -- The hypothesis now matches the goal
+
+      -- Contradiction: helper_maximal_superstable_exists implies c' ≠ c if c wasn't maximal
+      have h_c_ne_c' : c ≠ c' := by
+        intro hc_eq_c' -- Assume c = c' for contradiction
+        -- Rewrite c' to c in the hypothesis h_max_c' using the assumed equality
+        rw [← hc_eq_c'] at h_max_c'
+        -- h_max_c' now has type: maximal_superstable G c ∧ config_ge c c
+        -- This contradicts the initial assumption h_not_max_c (¬ maximal_superstable G c)
+        exact h_not_max_c h_max_c' -- Apply h_not_max_c to the full hypothesis
+
+      -- We derived c = c' and c ≠ c', the final contradiction
+      exact h_c_ne_c' h_c_eq_c'
+    -- End of by_contra proof. We now know maximal_superstable G c holds.
+
+    -- Construct the main existential result for the forward direction
+    use c, h_max_super_c -- We found the required maximal superstable c
+    use D', h_qred_D', h_D_equiv_D', h_form_D'_eq_c -- Use the q-reduced D' and its properties
+  }
+  { -- Reverse direction (⇐)
+    intro h_exists -- Assume the existence of c, D' with the given properties
+    rcases h_exists with ⟨c, h_max_c, D', h_qred_D', h_D_equiv_D', h_form_D'_eq_c⟩
+
+    -- Goal: Prove maximal_unwinnable G D
+    constructor
     { -- Part 1: Show D is unwinnable (¬winnable G D)
-      intro h_win -- Assume 'winnable G D' for contradiction
+      intro h_win_D -- Assume 'winnable G D' for contradiction
       -- Use linear equivalence to transfer winnability from D to D'
       have h_win_D' : winnable G D' :=
-        (helper_linear_equiv_preserves_winnability G D D' h_equiv).mp h_win
+        (helper_linear_equiv_preserves_winnability G D D' h_D_equiv_D').mp h_win_D
 
-      -- Use the axiom that the divisor derived from a maximal superstable config is unwinnable
-      -- D' = (λ v => c.vertex_degree v - if v = q then 1 else 0) by h_form
-      -- h_max : maximal_superstable G c
-      have h_unwin_D'_form : ¬(winnable G (λ v => c.vertex_degree v - if v = q then 1 else 0)) := by
-        apply helper_superstable_to_unwinnable G q c h_max
+      -- The divisor form derived from a maximal superstable config is unwinnable
+      have h_unwin_form : ¬(winnable G (λ v => c.vertex_degree v - if v = q then 1 else 0)) :=
+        helper_superstable_to_unwinnable G q c h_max_c
 
-      -- Use h_form to show this is equivalent to ¬winnable G D'
+      -- Since D' equals this form, D' is unwinnable
       have h_unwin_D' : ¬(winnable G D') := by
-        rw [h_form]
-        exact h_unwin_D'_form
+        rw [h_form_D'_eq_c] -- Rewrite goal to use the form
+        exact h_unwin_form -- Apply the unwinnability of the form
 
-      -- Contradiction between h_win_D' (derived from assuming winnable G D)
-      -- and h_unwin_D' (derived from the properties of c and D')
+      -- Contradiction between h_win_D' and h_unwin_D'
       exact h_unwin_D' h_win_D'
     }
-    { -- Part 2: Show D + δ_v is winnable for any v (∀ v, winnable G (D + δ_v))
+    { -- Part 2: Show D + δᵥ is winnable for any v (∀ v, winnable G (D + δᵥ))
       intro v -- Take an arbitrary vertex v
 
-      -- Define the divisor form associated with the maximal superstable config c
-      let D'_form := λ w => c.vertex_degree w - if w = q then 1 else 0
-      have h_form_eq : D' = D'_form := h_form -- D' is linearly equivalent to this form
+      -- Define the divisor form associated with c and the form plus δᵥ
+      let D'_form : CFDiv V := λ w => c.vertex_degree w - if w = q then (1 : ℤ) else (0 : ℤ)
+      let delta_v : CFDiv V := fun w => ite (w = v) 1 0
+      let D'_form_plus_delta_v := D'_form + delta_v
 
-      -- Define the divisor D with an added chip at v
-      let D_plus_delta_v := λ w => D w + if w = v then 1 else 0
+      -- Adding a chip to the form derived from a maximal superstable config makes it winnable
+      have h_win_D'_form_plus_delta_v : winnable G D'_form_plus_delta_v :=
+        helper_maximal_superstable_chip_winnable_exact G q c h_max_c v
 
-      -- Define the form D'_form with an added chip at v
-      let D'_plus_delta_v := λ w => D'_form w + if w = v then 1 else 0
+      -- Define D + δᵥ
+      let D_plus_delta_v := D + delta_v
 
-      -- Axiom: Adding a chip to the divisor form D'_form makes it winnable
-      -- helper_maximal_superstable_chip_winnable_exact provides this
-      have h_win_D'_plus_delta_v : winnable G D'_plus_delta_v :=
-        helper_maximal_superstable_chip_winnable_exact G q c h_max v
+      -- Show that D + δᵥ is linearly equivalent to D' + δᵥ (which equals D'_form + δᵥ)
+      have h_equiv_plus_delta : linear_equiv G D_plus_delta_v D'_form_plus_delta_v := by
+        -- Goal: (D'_form + delta_v) - (D + delta_v) ∈ P
+        unfold linear_equiv -- Explicitly unfold goal
+        -- Simplify the difference using group properties
+        have h_diff_simp : (D'_form + delta_v) - (D + delta_v) = D'_form - D := by
+           funext w; simp only [add_apply, sub_apply]; ring -- Pointwise proof (use funext)
+        rw [h_diff_simp] -- Apply simplification
+        -- Goal: D'_form - D ∈ P
+        -- We know D' - D ∈ P (from h_D_equiv_D')
+        unfold linear_equiv at h_D_equiv_D'
+        -- We know D' = D'_form (by h_form_D'_eq_c)
+        rw [h_form_D'_eq_c] at h_D_equiv_D' -- Rewrite D' as D'_form in h_D_equiv_D'
+        exact h_D_equiv_D' -- Use the rewritten hypothesis
 
-      -- Show that D + δ_v is linearly equivalent to D' + δ_v
-      have h_equiv_plus_delta : linear_equiv G D_plus_delta_v D'_plus_delta_v := by
-        -- Explicitly define terms as CFDiv V
-        let delta_v : CFDiv V := fun w => ite (w = v) 1 0
-        let D'_form_div : CFDiv V := D'_form  -- Coerce from V → ℤ
-        let D_plus_delta_v_div : CFDiv V := D_plus_delta_v
-        let D'_plus_delta_v_div : CFDiv V := D'_plus_delta_v
-
-        -- Goal is linear_equiv G D_plus_delta_v D'_plus_delta_v_div
-        unfold linear_equiv -- Goal: D'_plus_delta_v_div - D_plus_delta_v_div ∈ principal_divisors G
-
-        -- Need to relate the original lambda D'_plus_delta_v/D_plus_delta_v to their CFDiv versions
-        have h_sub_eq : D'_plus_delta_v - D_plus_delta_v = D'_plus_delta_v_div - D_plus_delta_v_div := by
-          -- Since the _div versions are defined as coercions from the lambda versions
-          -- and subtraction is defined pointwise, this holds definitionally.
-          -- We can prove by function extensionality.
-          funext w; simp [D'_plus_delta_v_div, D_plus_delta_v_div, D'_plus_delta_v, D_plus_delta_v, sub_apply]
-
-        -- Rewrite the goal using this equality so it uses the CFDiv versions
-        rw [h_sub_eq] -- Goal: D'_plus_delta_v_div - D_plus_delta_v_div ∈ principal_divisors G
-
-        -- Prove intermediate equalities using funext and simp
-        have h_eq1 : D'_plus_delta_v_div = D'_form_div + delta_v := by
-          funext w; simp [D'_plus_delta_v_div, D'_plus_delta_v, D'_form_div, D'_form, delta_v, add_apply]
-        have h_eq2 : D_plus_delta_v_div = D + delta_v := by
-          funext w; simp [D_plus_delta_v_div, D_plus_delta_v, delta_v, add_apply]
-
-        -- Rewrite the goal using these equalities
-        rw [h_eq1, h_eq2] -- Goal: (D'_form_div + delta_v) - (D + delta_v) ∈ principal_divisors G
-
-        -- Simplify using the AddCommGroup lemma: (a + c) - (b + c) = a - b
-        rw [add_sub_add_right_eq_sub D'_form_div D delta_v] -- Goal: D'_form_div - D ∈ principal_divisors G
-
-        -- We know linear_equiv G D D' (h_equiv), meaning D' - D ∈ principal_divisors G
-        unfold linear_equiv at h_equiv
-
-        -- We need to show D'_form_div = D'
-        have h_D'_form_eq_D' : D'_form_div = D' := by
-          -- D'_form_div is coerced from D'_form. D' = D'_form by h_form_eq.
-          exact Eq.symm h_form_eq
-
-        -- Rewrite the goal using this equality
-        rw [h_D'_form_eq_D'] -- Goal: D' - D ∈ principal_divisors G
-
-        -- This is exactly h_equiv
-        exact h_equiv
-
-      -- Since D + δ_v is linearly equivalent to a winnable divisor (D' + δ_v), it is winnable.
-      exact (helper_linear_equiv_preserves_winnability G D_plus_delta_v D'_plus_delta_v h_equiv_plus_delta).mpr h_win_D'_plus_delta_v
+      -- Since D + δᵥ is linearly equivalent to a winnable divisor (D'_form + δᵥ), it must be winnable.
+      exact (helper_linear_equiv_preserves_winnability G D_plus_delta_v D'_form_plus_delta_v h_equiv_plus_delta).mpr h_win_D'_form_plus_delta_v
     }
   }
 
@@ -578,54 +580,17 @@ theorem rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V]
 
   calc deg D - genus G
     _ = deg D - (Multiset.card G.edges - Fintype.card V + 1) := by rw [genus]
-    _ < deg D - deg E + deg H := by {
-      -- Substitute deg E = rank G D + 1
-      rw [h_E_deg]
-      -- Have h2: deg H > 0
-      have h_big : deg D - (Multiset.card G.edges - Fintype.card V + 1) < deg D - (rank G D + 1) + deg H := by {
-        -- Rearrange terms
-        have h_core : deg D - (Multiset.card G.edges - Fintype.card V + 1)
-                    = deg D - (rank G D + 1) + (rank G D + 1 - (Multiset.card G.edges - Fintype.card V + 1)) := by ring
-        rw [h_core]
-        have h2 : deg H > 0 := by {
-          -- Use h_H_eff and h_k_neg with helper axiom
-          exact helper_sum_positive_at_q H k h_H_eff h_k_neg
-        }
-
-        have h_bound : rank G D + 1 - (Multiset.card G.edges - Fintype.card V + 1) < deg H := by {
-          apply helper_H_degree_bound G q D H k c c'
-          · exact h_H_eff
-          · -- Show H matches form
-            funext v
-            simp [H]
-        }
-        -- Complete inequality
+    _ < deg D - deg E + deg H := by
+        -- Substitute deg E = rank G D + 1
+        rw [h_E_deg]
+        -- Goal simplifies to: rank G D + 1 - genus G < deg H
+        -- Apply the axiom to get this inequality as a hypothesis
+        have h_bound := helper_H_degree_bound G q D H k c c' h_H_eff (by simp [H]) -- Provide proof for H form
+        -- Show the original goal follows algebraically
         linarith [h_bound]
-      }
-      exact h_big
-    }
-    _ ≤ rank G D - rank G (λ v => canonical_divisor G v - D v) := by {
-      have : deg E = rank G D + 1 := h_E_deg
-
-      -- Use maximal unwinnable properties
-      have h_DO_rank : rank G (λ v => c'.vertex_degree v - if v = q then 1 else 0) = -1 := by
-        rw [rank_neg_one_iff_unwinnable]
-        exact h_DO_unwin.1
-
-      -- Get linear equivalence
-      have h_DO_equiv : linear_equiv G (λ v => c'.vertex_degree v - if v = q then 1 else 0)
-                                    (λ v => D v - E v + H v) :=
-        helper_DO_linear_equiv G q D E H c'
-
-      -- Use degree properties
-      have h_deg_bound : deg (λ v => c'.vertex_degree v - if v = q then 1 else 0) = genus G - 1 := h_DO_deg
-
-      -- Use linear equivalence and rank bounds
-      have h_bound := helper_rank_deg_canonical_bound G q D E H c' h_DO_equiv
-
-      -- Use rank_neg_one_iff_unwinnable and h_DO_rank
-      have h_rank_eq : rank G (λ v => c'.vertex_degree v - if v = q then 1 else 0) = -1 := h_DO_rank
-
-      -- Complete inequality with linarith
-      linarith [h_bound, h_rank_eq, h_deg_bound]
-    }
+    _ ≤ rank G D - rank G (λ v => canonical_divisor G v - D v) := by
+        -- This inequality is helper_rank_deg_canonical_bound rearranged
+        apply le_sub_iff_add_le.mpr
+        -- Provide the axiom conclusion and let linarith handle rearrangement
+        have h_bound_orig := helper_rank_deg_canonical_bound G q D E H c' (helper_DO_linear_equiv G q D E H c')
+        linarith [h_bound_orig]

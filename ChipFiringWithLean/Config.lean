@@ -51,11 +51,20 @@ def config_linear_equiv {q : V} (G : CFGraph V) (c c' : Config V q) : Prop :=
   let diff := λ v => c'.vertex_degree v - c.vertex_degree v
   diff ∈ AddSubgroup.closure (Set.range (λ v => λ w => if w = v then -vertex_degree G v else num_edges G v w))
 
-/-- A configuration is superstable if it has no legal nonempty set-firings.
-    Equivalently, for all nonempty S ⊆ V \ {q}, there exists v ∈ S such that
-    c(v) < outdeg_S(v), meaning firing S would make v negative. -/
+-- Definition of the out-degree of a vertex v ∈ S with respect to a subset S ⊆ V \ {q}
+-- This counts edges from v to vertices *outside* S (but not q).
+-- outdeg_S(v) = |{ (v, w) ∈ E | w ∈ (V \ {q}) \ S }|
+def outdeg_S (G : CFGraph V) (q : V) (S : Finset V) (v : V) : ℤ :=
+  -- Sum num_edges from v to w, where w is not in S and not q.
+  ∑ w in (univ.filter (λ x => x ≠ q)).filter (λ x => x ∉ S), (num_edges G v w : ℤ)
+
+-- Standard definition of Superstability:
+-- A configuration c is superstable w.r.t. q if for every non-empty subset S of V \ {q},
+-- there is at least one vertex v in S that cannot fire without borrowing,
+-- meaning its chip count c(v) is strictly less than its out-degree w.r.t. S.
 def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
-  ∀ S ⊆ (univ.filter (λ v => v ≠ q)), S ≠ ∅ → ∃ v ∈ S, set_firing G c.vertex_degree S v < c.vertex_degree v
+  ∀ S : Finset V, S ⊆ univ.filter (λ x => x ≠ q) → S.Nonempty →
+    ∃ v ∈ S, c.vertex_degree v < outdeg_S G q S v
 
 /-- A maximal superstable configuration has no legal firings and dominates all other superstable configs -/
 def maximal_superstable {q : V} (G : CFGraph V) (c : Config V q) : Prop :=
