@@ -444,24 +444,11 @@ lemma helper_q_reduced_linear_equiv_dominates (G : CFGraph V) (q : V) (c c' : Co
   let D₁ := λ v => c.vertex_degree v - if v = q then 1 else 0
   let D₂ := λ v => c'.vertex_degree v - if v = q then 1 else 0
 
+  -- Unfold the definition of linear equivalence.
+  -- The goal is to show that the difference (D₂ - D₁) is a principal divisor.
   unfold linear_equiv
 
-  -- Show the difference is in principal divisors
-  let diff := D₂ - D₁
-
-  -- Show difference equals vertex degree difference
-  have h_diff_eq : ∀ v, diff v = c'.vertex_degree v - c.vertex_degree v := by
-    intro v
-    by_cases hv : v = q
-    · -- Case v = q
-      rw [hv]
-      have h_q₁ := superstable_zero_at_q G q c h_super
-      have h_q₂ := superstable_zero_at_q G q c' h_super'
-      simp [D₁, D₂, diff, h_q₁, h_q₂]
-    · -- Case v ≠ q
-      simp [D₁, D₂, diff, hv]
-
-  -- Show the difference is in principal divisors
+  -- This is exactly what the axiom `helper_q_reduced_diff_principal` states.
   exact helper_q_reduced_diff_principal G q c c' h_super h_super' h_ge
 
 /-- Axiom: If c' is maximal superstable and D corresponds to c'-q,
