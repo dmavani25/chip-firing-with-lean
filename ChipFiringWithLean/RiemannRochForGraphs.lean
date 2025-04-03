@@ -38,16 +38,11 @@ theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGr
   -- Let O be corresponding acyclic orientation with unique source q (from bijection)
   rcases stable_bijection G q with ⟨_, h_surj⟩
   -- O_subtype has type {O // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}
-  rcases h_surj c' with ⟨O_subtype, h_eq_c'⟩
+  rcases h_surj ⟨c', h_max'⟩ with ⟨O_subtype, h_f_eq_c'⟩
 
-  -- Get configuration c' from orientation O_subtype
-  -- O_subtype.val is the Orientation, O_subtype.prop.1 is acyclicity, O_subtype.prop.2 is uniqueness
-  let c'_config := orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2
-
-  -- Check consistency (assuming h_eq_c' means c' = c'_config)
-  -- Assuming the proof intended to use the configuration derived from the orientation
-  -- Let's rename c'_config to c' to match the original intent, assuming consistency.
-  let c' := orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2
+  -- From h_f_eq_c' : f O_subtype = ⟨c', h_max'⟩, we get that the configuration part is equal
+  have h_orient_config_eq_c' : orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2 = c' := by
+    exact Subtype.mk.inj h_f_eq_c'
 
   -- Define H := (c' - c) - (k + 1)q as a divisor
   let H : CFDiv V := λ v =>

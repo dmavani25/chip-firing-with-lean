@@ -66,9 +66,11 @@ def all_k_removals_winnable (G : CFGraph V) (D : CFDiv V) (k : ℕ) : Prop :=
 def exists_unwinnable_removal (G : CFGraph V) (D : CFDiv V) (k : ℕ) : Prop :=
   ∃ E : CFDiv V, effective E ∧ deg E = k + 1 ∧ ¬(winnable G (λ v => D v - E v))
 
-/-- Axiom: If a divisor is winnable, there exists an effective divisor linearly equivalent to it -/
-axiom winnable_iff_exists_effective (G : CFGraph V) (D : CFDiv V) :
-  winnable G D ↔ ∃ D' : CFDiv V, effective D' ∧ linear_equiv G D D'
+/-- Lemma: If a divisor is winnable, there exists an effective divisor linearly equivalent to it -/
+lemma winnable_iff_exists_effective (G : CFGraph V) (D : CFDiv V) :
+  winnable G D ↔ ∃ D' : CFDiv V, effective D' ∧ linear_equiv G D D' := by
+  unfold winnable Div_plus
+  simp only [Set.mem_setOf_eq]
 
 /-- Axiom: Rank existence and uniqueness -/
 axiom rank_exists_unique (G : CFGraph V) (D : CFDiv V) :
@@ -108,9 +110,26 @@ theorem rank_neg_one_iff_unwinnable (G : CFGraph V) (D : CFDiv V) :
   rank G D = -1 ↔ ¬(winnable G D) := by
   exact (rank_spec G D).1
 
-/-- Axiomatic Extension of Definition: If rank is not non-negative, then it equals -1 -/
-axiom rank_neg_one_of_not_nonneg {V : Type} [DecidableEq V] [Fintype V]
-  (G : CFGraph V) (D : CFDiv V) (h : ¬(rank G D ≥ 0)) : rank G  D = -1
+/-- Lemma: If rank is not non-negative, then it equals -1 -/
+lemma rank_neg_one_of_not_nonneg {V : Type} [DecidableEq V] [Fintype V]
+  (G : CFGraph V) (D : CFDiv V) (h_not_nonneg : ¬(rank G D ≥ 0)) : rank G D = -1 := by
+  -- rank_exists_unique gives ∃! r, P r ∨ Q r
+  -- Classical.choose_spec gives (P r ∨ Q r) ∧ ∀ y, (P y ∨ Q y) → y = r, where r = rank G D
+  have h_exists_unique_spec := Classical.choose_spec (rank_exists_unique G D)
+  -- We only need the existence part: P r ∨ Q r
+  have h_disjunction := h_exists_unique_spec.1
+  -- Now use Or.elim on the disjunction
+  apply Or.elim h_disjunction
+  · -- Case 1: rank G D = -1 ∧ rank_eq_neg_one_wrt_winnability G D
+    intro h_case1
+    -- The goal is rank G D = -1, which is the first part of h_case1
+    exact h_case1.1
+  · -- Case 2: rank G D ≥ 0 ∧ rank_geq G D (rank G D).toNat ∧ ...
+    intro h_case2
+    -- This case contradicts the hypothesis h_not_nonneg
+    have h_nonneg : rank G D ≥ 0 := h_case2.1
+    -- Derive contradiction using h_not_nonneg
+    exact False.elim (h_not_nonneg h_nonneg)
 
 /-- Axiom: Linear equivalence is preserved when adding chips, provided deg D = g - 1
     This makes sense because such a D is maximal unwinnable, and adding a chip to a maximal unwinnable divisor

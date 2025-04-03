@@ -51,10 +51,10 @@ theorem winnable_iff_q_reduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
     · exact h_D'.1.2  -- D' is q-reduced
     · -- Show D' is effective using:
       -- First get E ~ D' by transitivity through D
-      have h_equiv_symm := (linear_equiv_is_equivalence G).symm h_equiv
-      have h_equiv' := (linear_equiv_is_equivalence G).trans h_equiv_symm h_D'.1.1
-      -- Now use effectiveness preservation under linear equivalence
-      exact helper_effective_linear_equiv G E D' h_equiv' h_eff
+      have h_equiv_symm : linear_equiv G E D := (linear_equiv_is_equivalence G).symm h_equiv -- E ~ D
+      have h_equiv_E_D' : linear_equiv G E D' := (linear_equiv_is_equivalence G).trans h_equiv_symm h_D'.1.1 -- E ~ D ~ D' => E ~ D'
+      -- Now use the axiom that q-reduced form of an effective divisor is effective
+      exact helper_q_reduced_of_effective_is_effective G q E D' h_eff h_equiv_E_D' h_D'.1.2
   }
   { -- Reverse direction
     intro h
@@ -98,68 +98,78 @@ theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : Orientation G)
 /-- [Proven] Proposition 4.1.11: Bijection between acyclic orientations with source q
     and maximal superstable configurations -/
 theorem stable_bijection (G : CFGraph V) (q : V) :
-    Function.Bijective (λ (O : {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}) =>
-      orientation_to_config G O.val q O.prop.1 O.prop.2) := by
+    let α := {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)};
+    let β := {c : Config V q // maximal_superstable G c};
+    let f_raw : α → Config V q := λ O_sub => orientation_to_config G O_sub.val q O_sub.prop.1 O_sub.prop.2;
+    let f : α → β := λ O_sub => ⟨f_raw O_sub, helper_orientation_config_maximal G O_sub.val q O_sub.prop.1 O_sub.prop.2⟩;
+    Function.Bijective f := by
+  -- Define the domain and codomain types explicitly (can be removed if using let like above)
+  let α := {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}
+  let β := {c : Config V q // maximal_superstable G c}
+  -- Define the function f_raw : α → Config V q
+  let f_raw : α → Config V q := λ O_sub => orientation_to_config G O_sub.val q O_sub.prop.1 O_sub.prop.2
+  -- Define the function f : α → β, showing the result is maximal superstable
+  let f : α → β := λ O_sub =>
+    ⟨f_raw O_sub, helper_orientation_config_maximal G O_sub.val q O_sub.prop.1 O_sub.prop.2⟩
+
   constructor
   -- Injectivity
-  { intros O₁_sub O₂_sub h_eq -- h_eq : f O₁_sub = f O₂_sub
-    -- Extract orientations and their properties
+  { -- Prove injective f using injective f_raw
+    intros O₁_sub O₂_sub h_f_eq -- h_f_eq : f O₁_sub = f O₂_sub
+    have h_f_raw_eq : f_raw O₁_sub = f_raw O₂_sub := by simp [f] at h_f_eq; exact h_f_eq
+
+    -- Reuse original injectivity proof structure, ensuring types match
     let ⟨O₁, h₁⟩ := O₁_sub
     let ⟨O₂, h₂⟩ := O₂_sub
-    let c := orientation_to_config G O₁ q h₁.1 h₁.2 -- Define c as f O₁_sub
-
-    -- Define h_eq₁ : f O₁_sub = c
+    -- Define c, h_eq₁, h_eq₂ based on orientation_to_config directly
+    let c := orientation_to_config G O₁ q h₁.1 h₁.2
     have h_eq₁ : orientation_to_config G O₁ q h₁.1 h₁.2 = c := rfl
-    -- Define h_eq₂ : f O₂_sub = c
-    have h_eq₂ : orientation_to_config G O₂ q h₂.1 h₂.2 = c := Eq.symm h_eq
+    have h_eq₂ : orientation_to_config G O₂ q h₂.1 h₂.2 = c := by
+      exact h_f_raw_eq.symm.trans h_eq₁ -- Use transitivity
 
-    -- Prove q is a source for both orientations
     have h_src₁ : is_source G O₁ q := by
-      -- An acyclic orientation must have a source (by axiom)
-      rcases helper_acyclic_has_source G O₁ h₁.1 with ⟨s, hs⟩
-      -- The unique source property (h₁.2) forces this source s to be q
-      have h_s_eq_q : s = q := h₁.2 s hs
-      -- Substitute s=q into the source property hs
-      rwa [h_s_eq_q] at hs
+      rcases helper_acyclic_has_source G O₁ h₁.1 with ⟨s, hs⟩; have h_s_eq_q : s = q := h₁.2 s hs; rwa [h_s_eq_q] at hs
     have h_src₂ : is_source G O₂ q := by
-      rcases helper_acyclic_has_source G O₂ h₂.1 with ⟨s, hs⟩
-      have h_s_eq_q : s = q := h₂.2 s hs
-      rwa [h_s_eq_q] at hs
+      rcases helper_acyclic_has_source G O₂ h₂.1 with ⟨s, hs⟩; have h_s_eq_q : s = q := h₂.2 s hs; rwa [h_s_eq_q] at hs
 
-    -- Apply uniqueness theorem
-    apply Subtype.eq -- To prove O₁_sub = O₂_sub, prove O₁ = O₂
-    exact (helper_config_to_orientation_unique G q c
-      (helper_orientation_config_superstable G O₁ q h₁.1 h₁.2)
-      (helper_orientation_config_maximal G O₁ q h₁.1 h₁.2)
+    -- Define h_super and h_max in terms of c
+    have h_super : superstable G q c := by
+      rw [← h_eq₁]; exact helper_orientation_config_superstable G O₁ q h₁.1 h₁.2
+    have h_max   : maximal_superstable G c := by
+      rw [← h_eq₁]; exact helper_orientation_config_maximal G O₁ q h₁.1 h₁.2
+
+    apply Subtype.eq
+    -- Call helper_config_to_orientation_unique with the original h_eq₁ and h_eq₂
+    exact (helper_config_to_orientation_unique G q c h_super h_max
       O₁ O₂ h₁.1 h₂.1 h_src₁ h_src₂ h₁.2 h₂.2 h_eq₁ h_eq₂)
   }
 
   -- Surjectivity
-  { intro c
-    -- First show c is superstable
-    have h_super : superstable G q c := helper_config_superstable G q c
+  { -- Prove Function.Surjective f
+    unfold Function.Surjective
+    intro y -- y should now have type β
+    -- Access components using .val and .property
+    let c_target : Config V q := y.val -- Explicitly type c_target
+    let h_target_max_superstable := y.property
 
-    -- Get maximal superstable config extending c
-    have ⟨c', h_max', h_ge⟩ := helper_maximal_superstable_exists G q c h_super
+    -- Use the axiom that every maximal superstable config comes from an orientation.
+    rcases helper_maximal_superstable_orientation G q c_target h_target_max_superstable with
+      ⟨O, h_acyc, h_unique_source, h_config_eq_target⟩
 
-    -- Get orientation for the maximal superstable config
-    -- Note: helper_maximal_superstable_orientation now returns h_unique_source
-    have ⟨O, h_acyc, h_unique_source, h_eq⟩ := helper_maximal_superstable_orientation G q c' h_max'
+    -- Construct the required subtype element x : α (the pre-image)
+    let x : α := ⟨O, ⟨h_acyc, h_unique_source⟩⟩
 
-    -- Prove q is a source using the uniqueness property
-    have h_src : is_source G O q := by
-      rcases helper_acyclic_has_source G O h_acyc with ⟨s, hs⟩
-      have h_s_eq_q : s = q := h_unique_source s hs
-      rwa [h_s_eq_q] at hs
+    -- Show that this x exists
+    use x
 
-    -- Use the orientation to construct our witness
-    -- The subtype now expects ⟨is_acyclic, unique_source⟩
-    use ⟨O, ⟨h_acyc, h_unique_source⟩⟩
-
-    -- Show equality through transitivity
-    calc orientation_to_config G O q h_acyc h_unique_source
-      _ = c' := h_eq
-      _ = c  := helper_maximal_superstable_unique_dominates G q c c' h_max' h_ge }
+    -- Show f x = y using Subtype.eq
+    apply Subtype.eq
+    -- Goal: (f x).val = y.val
+    -- Need to show: f_raw x = c_target
+    -- This is exactly h_config_eq_target
+    exact h_config_eq_target
+    -- Proof irrelevance handles the equality of the property components.
+  }
 
 /-- [Proven] Corollary 4.2.2: Rank inequality for divisors -/
 theorem rank_subadditive (G : CFGraph V) (D D' : CFDiv V)
@@ -352,7 +362,7 @@ theorem maximal_unwinnable_char (G : CFGraph V) (q : V) (D : CFDiv V) :
         let D_plus_delta_v_div : CFDiv V := D_plus_delta_v
         let D'_plus_delta_v_div : CFDiv V := D'_plus_delta_v
 
-        -- Goal is linear_equiv G D_plus_delta_v_div D'_plus_delta_v_div
+        -- Goal is linear_equiv G D_plus_delta_v D'_plus_delta_v_div
         unfold linear_equiv -- Goal: D'_plus_delta_v_div - D_plus_delta_v_div ∈ principal_divisors G
 
         -- Need to relate the original lambda D'_plus_delta_v/D_plus_delta_v to their CFDiv versions
@@ -516,13 +526,17 @@ theorem rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V]
   -- Get maximal superstable c' ≥ c
   rcases helper_maximal_superstable_exists G q c h_super with ⟨c', h_max', h_ge⟩
 
-  -- Let O be corresponding acyclic orientation
-  rcases stable_bijection G q with ⟨_, h_surj⟩
-  rcases h_surj c' with ⟨O_subtype, h_eq_c'⟩ -- O_subtype is {O // acyclic ∧ unique_source}
+  -- Let O be corresponding acyclic orientation using the bijection
+  rcases stable_bijection G q with ⟨h_inj, h_surj⟩
+  -- Apply h_surj to the subtype element ⟨c', h_max'⟩
+  rcases h_surj ⟨c', h_max'⟩ with ⟨O_subtype, h_eq_c'⟩ -- O_subtype is {O // acyclic ∧ unique_source}
 
   -- Get configuration c' from orientation O_subtype
   -- O_subtype.val is the Orientation, O_subtype.prop.1 is acyclicity, O_subtype.prop.2 is uniqueness
   let c'_config := orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2
+
+  -- Check consistency: h_eq_c' implies c'_config = c'
+  have h_orient_eq_c' : c'_config = c' := by exact Subtype.mk.inj h_eq_c'
 
   -- Check consistency (assuming h_eq_c' implies c' = c'_config)
   -- Define H := (c' - c) - (k + 1)q as a divisor (using original c')

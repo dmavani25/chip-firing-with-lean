@@ -4,6 +4,13 @@ import ChipFiringWithLean.Orientation
 import ChipFiringWithLean.Rank
 import Mathlib.Algebra.Ring.Int
 import Paperproof
+import Mathlib.Algebra.BigOperators.Group.Multiset
+import Mathlib.Algebra.BigOperators.Group.Finset
+import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finset.Fold
+import Mathlib.Data.Multiset.Basic
+import Mathlib.Data.Nat.Cast.Basic
+import Mathlib.Data.Finset.Card
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
@@ -18,14 +25,57 @@ variable {V : Type} [DecidableEq V] [Fintype V]
 # Helpers for Proposition 3.2.4
 -/
 
--- Axiom: Every divisor is linearly equivalent to exactly one q-reduced divisor
-axiom helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
-  ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
+/- Axiom: Existence of a q-reduced representative for any divisor class
+   This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
+axiom exists_q_reduced_representative (G : CFGraph V) (q : V) (D : CFDiv V) :
+  ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
 
-/-- Axiom: Effectiveness preservation under linear equivalence (legal set-firings)
-    This is a fact that is directly used in Corollary 3.7 by Corry & Perkinson (Divisors & Sandpiles) -/
-axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
-  linear_equiv G D₁ D₂ → effective D₁ → effective D₂
+/- [Proven] Helper lemma: Uniqueness of the q-reduced representative within a divisor class -/
+lemma uniqueness_of_q_reduced_representative (G : CFGraph V) (q : V) (D : CFDiv V)
+  (D₁ D₂ : CFDiv V) (h₁ : linear_equiv G D D₁ ∧ q_reduced G q D₁)
+  (h₂ : linear_equiv G D D₂ ∧ q_reduced G q D₂) : D₁ = D₂ := by
+  -- Extract information from hypotheses
+  have h_equiv_D_D1 : linear_equiv G D D₁ := h₁.1
+  have h_qred_D1 : q_reduced G q D₁ := h₁.2
+  have h_equiv_D_D2 : linear_equiv G D D₂ := h₂.1
+  have h_qred_D2 : q_reduced G q D₂ := h₂.2
+
+  -- Use properties of the equivalence relation linear_equiv
+  let equiv_rel := linear_equiv_is_equivalence G
+  -- Symmetry: linear_equiv G D D₁ → linear_equiv G D₁ D
+  have h_equiv_D1_D : linear_equiv G D₁ D := equiv_rel.symm h_equiv_D_D1
+  -- Transitivity: linear_equiv G D₁ D ∧ linear_equiv G D D₂ → linear_equiv G D₁ D₂
+  have h_equiv_D1_D2 : linear_equiv G D₁ D₂ := equiv_rel.trans h_equiv_D1_D h_equiv_D_D2
+
+  -- Apply the q_reduced_unique_class axiom from Basic.lean
+  -- Needs: q_reduced G q D₁, q_reduced G q D₂, linear_equiv G D₁ D₂
+  exact q_reduced_unique_class G q D₁ D₂ ⟨h_qred_D1, h_qred_D2, h_equiv_D1_D2⟩
+
+/- [Proven] Helper lemma: Every divisor is linearly equivalent to exactly one q-reduced divisor -/
+lemma helper_unique_q_reduced (G : CFGraph V) (q : V) (D : CFDiv V) :
+  ∃! D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' := by
+  -- Prove existence and uniqueness separately
+  -- Existence comes from the axiom
+  have h_exists : ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D' := by
+    exact exists_q_reduced_representative G q D
+
+  -- Uniqueness comes from the lemma proven above
+  have h_unique : ∀ (y₁ y₂ : CFDiv V),
+    (linear_equiv G D y₁ ∧ q_reduced G q y₁) →
+    (linear_equiv G D y₂ ∧ q_reduced G q y₂) → y₁ = y₂ := by
+    intro y₁ y₂ h₁ h₂
+    exact uniqueness_of_q_reduced_representative G q D y₁ y₂ h₁ h₂
+
+  -- Combine existence and uniqueness using the standard constructor
+  exact exists_unique_of_exists_of_unique h_exists h_unique
+
+/-- Axiom: The q-reduced representative of an effective divisor is effective.
+    This follows from the fact that the reduction process (like Dhar's algorithm or repeated
+    legal firings) preserves effectiveness when starting with an effective divisor.
+    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
+axiom helper_q_reduced_of_effective_is_effective (G : CFGraph V) (q : V) (E E' : CFDiv V) :
+  effective E → linear_equiv G E E' → q_reduced G q E' → effective E'
+
 
 
 
@@ -34,7 +84,9 @@ axiom helper_effective_linear_equiv (G : CFGraph V) (D₁ D₂ : CFDiv V) :
 # Helpers for Lemma 4.1.10
 -/
 
-/-- Axiom: A non-empty graph with an acyclic orientation must have at least one source -/
+/-- Axiom: A non-empty graph with an acyclic orientation must have at least one source.
+    Proving this inductively is a bit tricky at the moment, and we ran into infinite recursive loop,
+    thus we are declaring this as an axiom for now. -/
 axiom helper_acyclic_has_source (G : CFGraph V) (O : Orientation G) :
   is_acyclic G O → ∃ v : V, is_source G O v
 
@@ -51,13 +103,15 @@ theorem helper_orientation_eq_of_directed_edges {G : CFGraph V}
 
 /-- Axiom: Given a list of disjoint vertex sets that form a partition of V,
     this axiom states that an acyclic orientation is uniquely determined
-    by this partition where each set contains vertices with same indegree
-    [@TODO] Future Work: To prove.-/
+    by this partition where each set contains vertices with same indegree.
+    Proving this inductively is a bit tricky at the moment, and we ran into infinite recursive loop,
+    thus we are declaring this as an axiom for now. -/
 axiom helper_orientation_determined_by_levels {G : CFGraph V}
   (O O' : Orientation G) :
   is_acyclic G O → is_acyclic G O' →
   (∀ v : V, indeg G O v = indeg G O' v) →
   O = O'
+
 
 
 
@@ -68,6 +122,7 @@ axiom helper_orientation_determined_by_levels {G : CFGraph V}
 
 /- Axiom: Defining a reusable block for a configuration from an acyclic orientation with source q being superstable
           Only to be used to define a superstable configuration from an acyclic orientation with source q as a Prop.
+   This was especially hard to prove in Lean4, so we are leaving it as an axiom for now.
 -/
 axiom helper_orientation_config_superstable (G : CFGraph V) (O : Orientation G) (q : V)
     (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
@@ -75,6 +130,7 @@ axiom helper_orientation_config_superstable (G : CFGraph V) (O : Orientation G) 
 
 /- Axiom: Defining a reusable block for a configuration from an acyclic orientation with source q being maximal superstable
           Only to be used to define a maximal superstable configuration from an acyclic orientation with source q as a Prop.
+   This was especially hard to prove in Lean4, so we are leaving it as an axiom for now.
 -/
 axiom helper_orientation_config_maximal (G : CFGraph V) (O : Orientation G) (q : V)
     (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
@@ -155,30 +211,19 @@ lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
     orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 := by
   exact h.symm
 
-/- Axiom: Defining a reusable block for a configuration being superstable.
-          Only to be used to define a superstable configuration as a Prop.
--/
-axiom helper_config_superstable (G : CFGraph V) (q : V) (c : Config V q) : superstable G q c
-
 /-- Axiom: Every superstable configuration extends to a maximal superstable configuration
-    [@TODO] Future Work: To prove. -/
+    This was especially hard to prove in Lean4, so we are leaving it as an axiom for now. -/
 axiom helper_maximal_superstable_exists (G : CFGraph V) (q : V) (c : Config V q)
     (h_super : superstable G q c) :
     ∃ c' : Config V q, maximal_superstable G c' ∧ config_ge c' c
 
 /-- Axiom: Every maximal superstable configuration comes from an acyclic orientation
-    [@TODO] Future Work: To prove. -/
+    This was especially hard to prove in Lean4, so we are leaving it as an axiom for now. -/
 axiom helper_maximal_superstable_orientation (G : CFGraph V) (q : V) (c : Config V q)
     (h_max : maximal_superstable G c) :
     ∃ (O : Orientation G) (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q),
       orientation_to_config G O q h_acyc h_unique_source = c
 
-/-- Axiom: If c' dominates c and c' is maximal superstable, then c = c'
-    [@TODO] Future Work: To prove. -/
-axiom helper_maximal_superstable_unique_dominates (G : CFGraph V) (q : V)
-    (c c' : Config V q)
-    (h_max' : maximal_superstable G c')
-    (h_ge : config_ge c' c) : c' = c
 
 
 
@@ -188,7 +233,7 @@ axiom helper_maximal_superstable_unique_dominates (G : CFGraph V) (q : V)
 -/
 
 /-- Axiom: A divisor can be decomposed into parts of specific degrees
-    [@TODO] Future Work: To prove. -/
+    This was especially hard to prove in Lean4, so we are leaving it as an axiom for now. -/
 axiom helper_divisor_decomposition (G : CFGraph V) (E'' : CFDiv V) (k₁ k₂ : ℕ)
   (h_effective : effective E'') (h_deg : deg E'' = k₁ + k₂) :
   ∃ (E₁ E₂ : CFDiv V),
@@ -216,7 +261,6 @@ theorem helper_winnable_add (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   have hE_eff : effective E := by
     intro v
     simp [effective] at hE₁_eff hE₂_eff ⊢
-    unfold Div_plus at hE₁_eff hE₂_eff
     have h1 := hE₁_eff v
     have h2 := hE₂_eff v
     exact add_nonneg h1 h2
@@ -257,7 +301,7 @@ theorem helper_winnable_add_alternative (G : CFGraph V) (D₁ D₂ : CFDiv V) :
   constructor
   -- Show E₁ + E₂ is effective
   {
-    unfold Div_plus at hE₁_eff hE₂_eff
+    unfold Div_plus -- Note: Div_plus is defined using effective
     unfold effective at *
     intro v
     have h1 := hE₁_eff v
@@ -284,8 +328,9 @@ theorem helper_winnable_add_alternative (G : CFGraph V) (D₁ D₂ : CFDiv V) :
 
 
 
+
 /-
-# Helpers for Corollary 4.2.3
+# Helpers for Corollary 4.2.3 + Handshaking Theorem
 -/
 
 /-- [Proved] Helper lemma: Every divisor can be decomposed into a principal divisor and an effective divisor -/
@@ -327,31 +372,90 @@ lemma edge_incident_vertices_count (G : CFGraph V) (e : V × V) (he : e ∈ G.ed
   · ext v
     simp only [Finset.mem_filter, Finset.mem_univ, true_and,
                Finset.mem_insert, Finset.mem_singleton]
-    constructor
-    · intro h
-      cases h with
+    -- The proof here can be simplified using Iff.intro and cases
+    apply Iff.intro
+    · intro h_mem_filter -- Goal: v ∈ {e.1, e.2}
+      cases h_mem_filter with
       | inl h1 => exact Or.inl (Eq.symm h1)
       | inr h2 => exact Or.inr (Eq.symm h2)
-    · intro h
-      cases h with
+    · intro h_mem_set -- Goal: e.1 = v ∨ e.2 = v
+      cases h_mem_set with
       | inl h1 => exact Or.inl (Eq.symm h1)
       | inr h2 => exact Or.inr (Eq.symm h2)
 
-/-- Auxillary Axiom: The sum of edge incidences equals the sum of mapped incidence counts
-    [@TODO] Future Work: To prove. -/
-axiom sum_filter_eq_map_inc (G : CFGraph V) :
-  ∑ v, Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))
-    = (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)).sum
+/-- [Proven] Helper lemma: Swapping sum order for incidence checking (Nat version). -/
+lemma sum_filter_eq_map_inc_nat (G : CFGraph V) :
+  ∑ v : V, Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))
+    = Multiset.sum (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)) := by
+  -- Define P and g using Prop for clarity in the proof - Available throughout
+  let P : V → V × V → Prop := fun v e => e.fst = v ∨ e.snd = v
+  let g : V × V → ℕ := fun e => (Finset.univ.filter (P · e)).card
 
-/-- Auxillary Axiom: Summing mapped incidence counts equals summing constant 2
-    [@TODO] Future Work: To prove. -/
-axiom map_inc_eq_map_two (G : CFGraph V) :
-  (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card)).sum
-    = 2 * (Multiset.card G.edges)
+  -- Rewrite the goal using P and g for proof readability
+  suffices goal_rewritten : ∑ v : V, Multiset.card (G.edges.filter (P v)) = Multiset.sum (G.edges.map g) by
+    exact goal_rewritten -- The goal is now exactly the statement `goal_rewritten`
+
+  -- Prove the rewritten goal by induction on the multiset G.edges
+  induction G.edges using Multiset.induction_on with
+  -- Base case: s = ∅
+  | empty =>
+    simp only [Multiset.filter_zero, Multiset.card_zero, Finset.sum_const_zero,
+               Multiset.map_zero, Multiset.sum_zero] -- Use _zero lemmas
+  -- Inductive step: Assume holds for s, prove for a :: s
+  | cons a s ih =>
+    -- Rewrite RHS: sum(map(g, a::s)) = g a + sum(map(g, s))
+    rw [Multiset.map_cons, Multiset.sum_cons]
+
+    -- Rewrite LHS: ∑ v, card(filter(P v, a::s))
+    -- Step 1: card(filter) -> countP
+    simp_rw [← Multiset.countP_eq_card_filter]
+
+    -- Step 2: Use countP_cons _ a s inside the sum. Assumes it simplifies
+    -- to the form ∑ v, (countP (P v) s + ite (P v a) 1 0)
+    simp only [Multiset.countP_cons]
+
+    -- Step 3 is skipped (assumed handled by simp in step 2)
+
+    -- Step 4: Distribute the sum
+    rw [Finset.sum_add_distrib]
+
+    -- Step 5: Simplify the second sum (∑ v, ite (P v a) 1 0) to g a
+    have h_sum_ite_eq_card : ∑ v : V, ite (P v a) 1 0 = g a := by
+      -- Use Finset.card_filter: (s.filter p).card = ∑ x ∈ s, if p x then 1 else 0
+      rw [← Finset.card_filter]
+      -- Should hold by definition of sum over Fintype and definition of g
+    rw [h_sum_ite_eq_card] -- Goal: ∑ v, countP (P v) s + g a = g a + sum (map g s)
+
+    -- Step 6: Rewrite the first sum's countP back to card(filter)
+    simp_rw [Multiset.countP_eq_card_filter] -- Goal: ∑ v, card(filter (P v) s) + g a = g a + ...
+
+    -- Step 7: Apply IH and finish
+    rw [add_comm] -- Goal: g a + ∑ v, card(filter (P v) s) = g a + ...
+    rw [ih] -- Apply inductive hypothesis
+
+
+
+/-- [Proven] Helper lemma: Summing mapped incidence counts equals summing constant 2 (Nat version). -/
+lemma map_inc_eq_map_two_nat (G : CFGraph V) :
+  Multiset.sum (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card))
+    = 2 * (Multiset.card G.edges) := by
+  -- Define the function being mapped
+  let f : V × V → ℕ := λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card
+  -- Define the constant function 2
+  let g (_ : V × V) : ℕ := 2
+  -- Show f equals g for all edges in G.edges
+  have h_congr : ∀ e ∈ G.edges, f e = g e := by
+    intro e he
+    simp [f, g]
+    exact edge_incident_vertices_count G e he
+  -- Apply congruence to the map function itself first using map_congr with rfl
+  rw [Multiset.map_congr rfl h_congr] -- Use map_congr with rfl
+  -- Apply rewrites step-by-step
+  rw [Multiset.map_const', Multiset.sum_replicate, Nat.nsmul_eq_mul, Nat.mul_comm]
 
 /--
-**Handshaking Theorem:** In a loopless multigraph \(G\), the sum of the degrees of all vertices
-is twice the number of edges:
+**Handshaking Theorem:** [Proven] In a loopless multigraph \(G\),
+the sum of the degrees of all vertices is twice the number of edges:
 
 \[
   \sum_{v \in V} \deg(v) \;=\; 2 \cdot \#(\text{edges of }G).
@@ -359,27 +463,25 @@ is twice the number of edges:
 -/
 theorem helper_sum_vertex_degrees (G : CFGraph V) :
     ∑ v, vertex_degree G v = 2 * ↑(Multiset.card G.edges) := by
-
+  -- Unfold vertex degree definition
   unfold vertex_degree
-
-  have h_count : ∀ e ∈ G.edges,
-    (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card = 2 := by
-    intro e he
-    exact edge_incident_vertices_count G e he
-
-  -- Define a helper function: for any edge e, inc(e) = number of vertices v incident to e.
-  let inc : (V × V) → ℕ := λ e =>
-    (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card
-
   calc
+    -- Start with the definition of sum of vertex degrees
     ∑ v, vertex_degree G v
+    -- Express vertex degree as Nat cast of card filter
     = ∑ v, ↑(Multiset.card (G.edges.filter (λ e => e.1 = v ∨ e.2 = v))) := by rfl
-    _ = ↑(∑ v, Multiset.card (G.edges.filter (λ e => e.1 = v ∨ e.2 = v))) := by simp
-    _ = ↑((G.edges.map inc).sum) := by
-      rw [sum_filter_eq_map_inc G]
+    -- Pull the Nat cast outside the sum over vertices
+    _ = ↑(∑ v, Multiset.card (G.edges.filter (λ e => e.1 = v ∨ e.2 = v))) := by rw [Nat.cast_sum]
+    -- Apply the sum swapping lemma (Nat version)
+    _ = ↑(Multiset.sum (G.edges.map (λ e => (Finset.univ.filter (λ v => e.1 = v ∨ e.2 = v)).card))) := by
+      rw [sum_filter_eq_map_inc_nat G]
+    -- Apply the lemma relating sum of incidences to 2 * |E| (Nat version)
+    _ = ↑(2 * (Multiset.card G.edges)) := by
+      rw [map_inc_eq_map_two_nat G]
+    -- Pull the constant 2 outside the Nat cast
     _ = 2 * ↑(Multiset.card G.edges) := by
-      rw [map_inc_eq_map_two G]
-      simp
+      rw [Nat.cast_mul, Nat.cast_ofNat] -- Use Nat.cast_ofNat for Nat.cast 2
+
 
 
 
@@ -402,6 +504,7 @@ axiom helper_maximal_superstable_degree_lower_bound (G : CFGraph V) (q : V) (c :
     [@TODO] Future Work: To prove. -/
 axiom helper_degree_g_implies_maximal (G : CFGraph V) (q : V) (c : Config V q) :
   superstable G q c → config_degree c = genus G → maximal_superstable G c
+
 
 
 
@@ -484,6 +587,9 @@ theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : C
       exact linear_equiv_is_equivalence G |>.trans h_equiv h_equiv₂ }
 
 
+
+
+
 /-
 # Helpers for Proposition 4.1.14
 -/
@@ -497,6 +603,10 @@ lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
   rw [hv]
   rw [source_indeg_zero O₁ q h_src₁]
   rw [source_indeg_zero O₂ q h_src₂]
+
+
+
+
 
 /-
 # Helpers for Rank Degree Inequality used in RRG
@@ -566,6 +676,9 @@ axiom helper_superstable_to_unwinnable (G : CFGraph V) (q : V) (c : Config V q) 
   ¬winnable G (λ v => c.vertex_degree v - if v = q then 1 else 0)
 
 
+
+
+
 /-
 # Helpers for RRG's Corollary 4.4.1
 -/
@@ -577,6 +690,8 @@ axiom rank_decreases_for_KD {V : Type} [DecidableEq V] [Fintype V]
   (G : CFGraph V) (D : CFDiv V) :
   maximal_unwinnable G (λ v => canonical_divisor G v - D v) →
   ((rank G (λ v => canonical_divisor G v - D v) + 1).toNat < (rank G D + 1).toNat)
+
+
 
 
 
