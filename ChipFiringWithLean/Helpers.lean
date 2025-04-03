@@ -692,7 +692,11 @@ theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : C
     · -- Use transitivity: D₁ ~ D₂ ~ D₂'
       exact linear_equiv_is_equivalence G |>.trans h_equiv h_equiv₂ }
 
-
+/-- Axiom: Existence of elements in finite types
+    This is a technical axiom used to carry forward existence arguments we frequently use
+    such as the fact that finite graphs have vertices. This axiom
+    captures this in a way that can be used in formal lean4 proofs. -/
+axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
 
 
 
@@ -700,7 +704,7 @@ theorem helper_linear_equiv_preserves_winnability (G : CFGraph V) (D₁ D₂ : C
 # Helpers for Proposition 4.1.14
 -/
 
-/-- Helper lemma: Source vertices have equal indegree (zero) when v = q -/
+/-- [Proven] Helper lemma: Source vertices have equal indegree (zero) when v = q -/
 lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
     (G : CFGraph V) (O₁ O₂ : Orientation G) (q v : V)
     (h_src₁ : is_source G O₁ q = true) (h_src₂ : is_source G O₂ q = true)
@@ -717,12 +721,6 @@ lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
 /-
 # Helpers for Rank Degree Inequality used in RRG
 -/
-
-/-- Axiom: Existence of elements in finite types
-    This is a technical axiom used to carry forward existence arguments we frequently use
-    such as the fact that finite graphs have vertices. This axiom
-    captures this in a way that can be used in formal lean4 proofs. -/
-axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
 
 /-- Axiom: Dhar's algorithm produces q-reduced divisor from any divisor
     Given any divisor D, Dhar's algorithm produces a unique q-reduced divisor that is
@@ -751,28 +749,33 @@ axiom helper_dhar_negative_k {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph
 /-- Axiom: Given a graph G and a vertex q, there exists a maximal superstable divisor
     c' that is greater than or equal to any superstable divisor c. This is a key
     result from Corry & Perkinson's "Divisors and Sandpiles" (AMS, 2018) that is
-    used in proving the Riemann-Roch theorem for graphs. -/
+    used in proving the Riemann-Roch theorem for graphs.
+    This was especially hard to prove in Lean4, so I am leaving it as an axiom for the time being. -/
 axiom helper_superstable_to_unwinnable (G : CFGraph V) (q : V) (c : Config V q) :
   maximal_superstable G c →
   ¬winnable G (λ v => c.vertex_degree v - if v = q then 1 else 0)
 
-/-- Axiom: Rank and degree bounds for canonical divisor -/
+/-- Axiom: Rank and degree bounds for canonical divisor
+    This was especially hard to prove in Lean4, so I am leaving it as an axiom for the time being. -/
 axiom helper_rank_deg_canonical_bound (G : CFGraph V) (q : V) (D : CFDiv V) (E H : CFDiv V) (c' : Config V q) :
   linear_equiv G (λ v => c'.vertex_degree v - if v = q then 1 else 0) (λ v => D v - E v + H v) →
   rank G (λ v => canonical_divisor G v - D v) + deg D - deg E + deg H ≤ rank G D
 
-/-- Axiom: Degree of H relates to graph parameters when H comes from maximal superstable configs -/
+/-- Axiom: Degree of H relates to graph parameters when H comes from maximal superstable configs
+    This was especially hard to prove in Lean4, so I am leaving it as an axiom for the time being. -/
 axiom helper_H_degree_bound (G : CFGraph V) (q : V) (D : CFDiv V) (H : CFDiv V) (k : ℤ) (c : Config V q) (c' : Config V q) :
   effective H →
   H = (λ v => if v = q then -(k + 1) else c'.vertex_degree v - c.vertex_degree v) →
   rank G D + 1 - (Multiset.card G.edges - Fintype.card V + 1) < deg H
 
-/-- Axiom: Linear equivalence between DO and D-E+H -/
+/-- Axiom: Linear equivalence between DO and D-E+H
+    This was especially hard to prove in Lean4, so I am leaving it as an axiom for the time being. -/
 axiom helper_DO_linear_equiv (G : CFGraph V) (q : V) (D E H : CFDiv V) (c' : Config V q) :
   linear_equiv G (λ v => c'.vertex_degree v - if v = q then 1 else 0)
                (λ v => D v - E v + H v)
 
-/-- Axiom: Adding a chip anywhere to c'-q makes it winnable when c' is maximal superstable -/
+/-- Axiom: Adding a chip anywhere to c'-q makes it winnable when c' is maximal superstable
+    This was especially hard to prove in Lean4, so I am leaving it as an axiom for the time being. -/
 axiom helper_maximal_superstable_chip_winnable_exact (G : CFGraph V) (q : V) (c' : Config V q) :
   maximal_superstable G c' →
   ∀ (v : V), winnable G (λ w => (λ v => c'.vertex_degree v - if v = q then 1 else 0) w + if w = v then 1 else 0)
