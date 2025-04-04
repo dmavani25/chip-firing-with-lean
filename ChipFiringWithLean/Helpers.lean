@@ -407,29 +407,27 @@ lemma sum_filter_eq_map_inc_nat (G : CFGraph V) :
     rw [Multiset.map_cons, Multiset.sum_cons]
 
     -- Rewrite LHS: ∑ v, card(filter(P v, a::s))
-    -- Step 1: card(filter) -> countP
+    -- card(filter) -> countP
     simp_rw [← Multiset.countP_eq_card_filter]
 
-    -- Step 2: Use countP_cons _ a s inside the sum. Assumes it simplifies
+    -- Use countP_cons _ a s inside the sum. Assumes it simplifies
     -- to the form ∑ v, (countP (P v) s + ite (P v a) 1 0)
     simp only [Multiset.countP_cons]
 
-    -- Step 3 is skipped (assumed handled by simp in step 2)
-
-    -- Step 4: Distribute the sum
+    -- Distribute the sum
     rw [Finset.sum_add_distrib]
 
-    -- Step 5: Simplify the second sum (∑ v, ite (P v a) 1 0) to g a
+    -- Simplify the second sum (∑ v, ite (P v a) 1 0) to g a
     have h_sum_ite_eq_card : ∑ v : V, ite (P v a) 1 0 = g a := by
       -- Use Finset.card_filter: (s.filter p).card = ∑ x ∈ s, if p x then 1 else 0
       rw [← Finset.card_filter]
       -- Should hold by definition of sum over Fintype and definition of g
     rw [h_sum_ite_eq_card] -- Goal: ∑ v, countP (P v) s + g a = g a + sum (map g s)
 
-    -- Step 6: Rewrite the first sum's countP back to card(filter)
+    -- Rewrite the first sum's countP back to card(filter)
     simp_rw [Multiset.countP_eq_card_filter] -- Goal: ∑ v, card(filter (P v) s) + g a = g a + ...
 
-    -- Step 7: Apply IH and finish
+    -- Apply IH and finish
     rw [add_comm] -- Goal: g a + ∑ v, card(filter (P v) s) = g a + ...
     rw [ih] -- Apply inductive hypothesis
 
@@ -458,7 +456,7 @@ lemma map_inc_eq_map_two_nat (G : CFGraph V) :
 the sum of the degrees of all vertices is twice the number of edges:
 
 \[
-  \sum_{v \in V} \deg(v) \;=\; 2 \cdot \#(\text{edges of }G).
+  \sum_{v \in V} \deg(v) = 2 \cdot \#(\text{edges of }G).
 \]
 -/
 theorem helper_sum_vertex_degrees (G : CFGraph V) :
