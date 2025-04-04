@@ -496,10 +496,9 @@ axiom q_reduced_superstable_correspondence (G : CFGraph V) (q : V) (D : CFDiv V)
   D = λ v => c.vertex_degree v - if v = q then 1 else 0
 
 /- Axiom: The degree of a q-reduced divisor is at most g-1.
-    This is a known result (Theorem 3.2.7 in Corry & Perkinson's "Divisors and Sandpiles").
     Proving this directly requires formalizing Dhar's burning algorithm or deeper results
     relating q-reduced divisors to acyclic orientations, which is beyond the current scope.
-    Attempts to prove it using other axioms here encounter difficulties due to interactions
+    Attempts to prove it here encounter difficulties due to interactions
     between `config_degree` and the value at `q`, or potential definition mismatches.
     Therefore, it remains an axiom for now. -/
 axiom lemma_q_reduced_degree_bound (G : CFGraph V) (q : V) (D : CFDiv V) :
