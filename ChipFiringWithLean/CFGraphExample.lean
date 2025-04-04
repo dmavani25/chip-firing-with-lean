@@ -173,7 +173,7 @@ theorem check_example_laplacian_symmetry : Matrix.IsSymm example_laplacian := by
   }
 }
 
--- Test script firing through laplacians (Needs more thought)
+-- Test script firing through laplacians
 def firing_script_example : firing_script Person := fun v => match v with
   | Person.A => 0
   | Person.B => -1
