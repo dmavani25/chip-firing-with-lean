@@ -80,6 +80,9 @@ axiom helper_q_reduced_of_effective_is_effective (G : CFGraph V) (q : V) (E E' :
 
 
 
+
+
+
 /-
 # Helpers for Lemma 4.1.10
 -/
@@ -488,12 +491,102 @@ theorem helper_sum_vertex_degrees (G : CFGraph V) :
 # Helpers for Proposition 4.1.13 Part (1)
 -/
 
-/-- Axiom: Correspondence between q-reduced divisors and superstable configurations
-    A divisor is q-reduced if and only if it corresponds to a superstable configuration minus q
-    This was especially hard to prove in Lean4, so I am leaving it as an axiom for the time being. -/
-axiom q_reduced_superstable_correspondence (G : CFGraph V) (q : V) (D : CFDiv V) :
+
+/-- [Proven] Helper Lemma: Equivalence between q-reduced divisors and superstable configurations.
+    A divisor D is q-reduced iff it can be written as c - δ_q for some superstable config c.
+    Relies on the updated definition of q_reduced in Basic.lean matching outdeg_S. -/
+lemma q_reduced_superstable_correspondence (G : CFGraph V) (q : V) (D : CFDiv V) :
   q_reduced G q D ↔ ∃ c : Config V q, superstable G q c ∧
-  D = λ v => c.vertex_degree v - if v = q then 1 else 0
+  D = λ v => c.vertex_degree v - if v = q then 1 else 0 := by
+  constructor
+  -- Forward direction (q_reduced → ∃ c, superstable ∧ D = c - δ_q)
+  · intro h_qred
+    -- Define the candidate configuration function
+    let c_func := λ v => D v + if v = q then 1 else 0
+    -- Prove c_func satisfies the non-negativity condition for Config
+    have h_nonneg : ∀ v : V, v ≠ q → c_func v ≥ 0 := by
+      intro v hv_ne_q
+      simp only [c_func, if_neg hv_ne_q] -- Simplify c_func for v ≠ q
+      -- Goal: D v + 0 ≥ 0
+      -- Use the first part of the q_reduced definition
+      have h_qred_part1 := h_qred.1
+      -- Need to show v is in the set {v | v ≠ q}
+      have v_in_set : v ∈ {v | v ≠ q} := by simp [Set.mem_setOf, hv_ne_q]
+      -- The goal is now D v + 0 ≥ 0, which follows from D v ≥ 0
+      simp only [add_zero]
+      exact h_qred_part1 v v_in_set
+    -- Construct the configuration
+    let c : Config V q := ⟨c_func, h_nonneg⟩
+    -- Prove the existence statement
+    use c
+    constructor
+    -- Prove c is superstable
+    · unfold superstable Config.vertex_degree -- Unfold definitions
+      intro S hS_subset hS_nonempty
+      -- Use the second part of the q_reduced definition
+      rcases h_qred.2 S hS_subset hS_nonempty with ⟨v, hv_in_S, h_dv_lt_outdeg⟩
+      -- We need to show ∃ v' ∈ S, c_func v' < outdeg_S G q S v'
+      use v -- Use the same vertex found from q_reduced
+      constructor
+      · exact hv_in_S
+      · -- Show c_func v < outdeg_S G q S v
+        -- Since v ∈ S and S ⊆ filter (≠ q), we know v ≠ q
+        have hv_ne_q : v ≠ q := by
+          exact Finset.mem_filter.mp (hS_subset hv_in_S) |>.right
+        -- Simplify c_func v for v ≠ q
+        have hc_func_v : c_func v = D v + 0 := by simp [c_func, if_neg hv_ne_q]
+        simp only [Config.vertex_degree] -- Unfold c.vertex_degree notation
+        rw [hc_func_v]
+        -- The goal is now D v + 0 < outdeg_S G q S v, which is exactly h_dv_lt_outdeg
+        -- Prove D v + 0 < outdeg_S G q S v from D v < outdeg_S G q S v
+        simp only [add_zero]
+        exact h_dv_lt_outdeg
+    -- Prove D = c - δ_q
+    · funext v -- Prove equality for all v
+      simp only [Config.vertex_degree] -- Unfold c.vertex_degree
+      -- Goal: D v = c.vertex_degree v - if v = q then 1 else 0
+      by_cases hv : v = q
+      · simp only [hv, if_true] -- Case v = q
+        ring_nf -- Goal: D q = (D q + 1) - 1
+      · -- Case v ≠ q
+        rw [if_neg hv] -- Rewrite outer if: D v = c_func v - 0
+        simp [c_func, hv] -- Simplify using c_func definition and hv (solves goal)
+  -- Backward direction (∃ c, superstable ∧ D = c - δ_q → q_reduced)
+  · intro h_exists
+    rcases h_exists with ⟨c, h_super, h_D_eq⟩
+    -- Prove q_reduced G q D
+    constructor
+    -- Prove first part of q_reduced: ∀ v ∈ {v | v ≠ q}, D v ≥ 0
+    · intro v hv_in_set
+      have hv_ne_q : v ≠ q := by exact Set.mem_setOf.mp hv_in_set
+      -- Use the definition of D
+      rw [h_D_eq]
+      simp only [if_neg hv_ne_q] -- Simplify for v ≠ q
+      -- Goal: c.vertex_degree v - 0 ≥ 0
+      -- Use the non_negative_except_q property of the configuration c
+      -- Prove c.vertex_degree v - 0 ≥ 0 from c.vertex_degree v ≥ 0
+      simp only [sub_zero]
+      exact c.non_negative_except_q v hv_ne_q
+    -- Prove second part of q_reduced: ∀ S ..., ∃ v ...
+    · intro S hS_subset hS_nonempty
+      -- Use the fact that c is superstable
+      rcases h_super S hS_subset hS_nonempty with ⟨v, hv_in_S, hc_lt_outdeg⟩
+      -- We need to show ∃ v' ∈ S, D v' < outdeg_S G q S v'
+      use v -- Use the same vertex v
+      constructor
+      · exact hv_in_S
+      · -- Show D v < outdeg_S G q S v
+        -- Since v ∈ S and S ⊆ filter (≠ q), we know v ≠ q
+        have hv_ne_q : v ≠ q := by
+          exact Finset.mem_filter.mp (hS_subset hv_in_S) |>.right
+        -- Use the definition of D
+        rw [h_D_eq]
+        simp only [if_neg hv_ne_q] -- Simplify for v ≠ q
+        -- Goal: c.vertex_degree v - 0 < outdeg_S G q S v
+        -- This is exactly hc_lt_outdeg
+        -- Prove c.vertex_degree v - 0 < ... from c.vertex_degree v < ...
+        simp only [sub_zero]
+        exact hc_lt_outdeg
 
 /- Axiom: The degree of a q-reduced divisor is at most g-1.
     Proving this directly requires formalizing Dhar's burning algorithm or deeper results
@@ -653,10 +746,10 @@ lemma helper_q_reduced_linear_equiv_dominates (G : CFGraph V) (q : V) (c c' : Co
     by_cases hv : v = q
     · -- Case v = q:
       simp only [hv, if_true] -- Simplify if clauses using v=q
-      ring -- Goal is (c' q - 1) - (c q - 1) = c' q - c q
-    · -- Case v ≠ q:
-      simp only [hv, if_false] -- Simplify if clauses using v≠q
-      ring -- Goal is (c' v - 0) - (c v - 0) = c' v - c v
+      ring_nf -- Goal: D q = (D q + 1) - 1
+    · -- Case v ≠ q
+      simp only [hv, if_false] -- Simplify if clauses using v ≠ q
+      ring -- Use ring to solve the resulting equality
 
   -- Rewrite the goal using the calculated difference D₂ - D₁ = c' - c
   rw [h_diff]
@@ -719,16 +812,51 @@ lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
 # Helpers for Rank Degree Inequality used in RRG
 -/
 
-/-- Axiom: Dhar's algorithm produces q-reduced divisor from any divisor
+/-- [Proven from Axiom] Lemma: Dhar's algorithm produces a superstable configuration and chip count at q.
+    Given any divisor D, there exists a superstable configuration c and an integer k such that
+    D is linearly equivalent to c + k * δ_q.
+    Proven using `exists_q_reduced_representative` and `q_reduced_superstable_correspondence_lemma`.
+    The proof concludes that k must be -1.
+
+    Dhar's algorithm produces q-reduced divisor from any divisor
     Given any divisor D, Dhar's algorithm produces a unique q-reduced divisor that is
     linearly equivalent to D. The algorithm outputs both a superstable configuration c
     and an integer k, where k represents the number of chips at q. This is a key result
     from Dhar (1990) proven in detail in Chapter 3 of Corry & Perkinson's "Divisors and
-    Sandpiles" (AMS, 2018) -/
-axiom helper_dhar_algorithm {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
+    Sandpiles" (AMS, 2018)
+-/
+lemma helper_dhar_algorithm {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) (D : CFDiv V) :
   ∃ (c : Config V q) (k : ℤ),
     linear_equiv G D (λ v => c.vertex_degree v + (if v = q then k else 0)) ∧
-    superstable G q c
+    superstable G q c := by
+  -- 1. Get the q-reduced representative D' for D using the axiom
+  rcases exists_q_reduced_representative G q D with ⟨D', h_equiv_D_D', h_qred_D'⟩
+
+  -- 2. Use the correspondence lemma to get c from D'
+  rcases (q_reduced_superstable_correspondence G q D').mp h_qred_D' with ⟨c, h_super_c, h_D'_eq_c_minus_delta_q⟩
+
+  -- 3. Show that choosing k = -1 satisfies the conditions.
+  let k := -1
+  use c -- Use the superstable config found from D'
+  use k -- Use k = -1
+  constructor
+  · -- Prove linear equivalence: linear_equiv G D (λ v => c.vertex_degree v + (if v = q then -1 else 0))
+    let D_target_k_neg_1 := λ v => c.vertex_degree v + (if v = q then -1 else 0)
+    -- Show D_target_k_neg_1 = D'
+    have h_target_eq_D' : D_target_k_neg_1 = D' := by
+      funext v
+      simp only [D_target_k_neg_1, h_D'_eq_c_minus_delta_q]
+      -- Goal: c v + (if v=q then -1 else 0) = c v - (if v=q then 1 else 0)
+      by_cases hv : v = q
+      · simp only [hv, if_true] -- Goal: c q + (-1) = c q - 1. Holds.
+        ring -- Added ring
+      · simp only [hv, if_false] -- Goal: c v + 0 = c v - 0. Holds.
+        ring -- Added ring
+    -- Now substitute D' into the goal
+    convert h_equiv_D_D' -- Use convert with the known equivalence
+    -- exact Eq.symm h_target_eq_D' -- Removed as per "no goals" error
+  · -- Prove superstable G q c
+    exact h_super_c -- From step 2
 
 /-- Axiom: Dhar's algorithm produces negative k for unwinnable divisors
     When applied to an unwinnable divisor D, Dhar's algorithm must produce a
