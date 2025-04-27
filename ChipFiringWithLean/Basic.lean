@@ -5,6 +5,7 @@ import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset
+import Mathlib.Tactic
 
 import Init.Core
 import Init.NotationExtra
@@ -120,6 +121,9 @@ structure CFGraph (V : Type) [DecidableEq V] [Fintype V] :=
 -- Divisor as a function from vertices to integers
 def CFDiv (V : Type) := V → ℤ
 
+-- Make CFDiv an Additive Commutative Group
+instance : AddCommGroup (CFDiv V) := Pi.addCommGroup
+
 -- Divisor addition (pointwise)
 instance : Add (CFDiv V) := ⟨λ D₁ D₂ => λ v => D₁ v + D₂ v⟩
 
@@ -186,6 +190,15 @@ lemma vertex_degree_nonneg (G : CFGraph V) (v : V) :
   vertex_degree G v ≥ 0 := by
   unfold vertex_degree
   apply Nat.cast_nonneg
+
+-- Definition of the graph Laplacian map
+-- Maps a firing vector (V → ℤ) to a principal divisor (CFDiv V)
+def laplacian_map (G : CFGraph V) (x : V → ℤ) : CFDiv V :=
+  λ v => (vertex_degree G v : ℤ) * x v - ∑ u : V, ↑(num_edges G v u) * x u
+
+-- Set of principal divisors, defined as the image of the Laplacian map
+def principal_divisors_laplacian (G : CFGraph V) : AddSubgroup (CFDiv V) :=
+  AddSubgroup.closure (Set.range (laplacian_map G))
 
 -- Firing move at a vertex
 def firing_move (G : CFGraph V) (D : CFDiv V) (v : V) : CFDiv V :=
@@ -318,7 +331,7 @@ def divisor_ordering (G : CFGraph V) (q : V) (D D' : CFDiv V) : Prop :=
 def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
   ∀ v ∈ S, set_firing G D S v ≥ 0
 
-/-- Axiom: Q-reduced form uniquely determines divisor class in the following sense:
+/- Axiom: Q-reduced form uniquely determines divisor class in the following sense:
     If two divisors D₁ and D₂ are both q-reduced and linearly equivalent,
     then they must be equal. This is a key uniqueness property that shows
     every divisor class contains exactly one q-reduced representative.

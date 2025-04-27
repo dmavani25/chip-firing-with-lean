@@ -815,7 +815,7 @@ lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
 /-- [Proven from Axiom] Lemma: Dhar's algorithm produces a superstable configuration and chip count at q.
     Given any divisor D, there exists a superstable configuration c and an integer k such that
     D is linearly equivalent to c + k * δ_q.
-    Proven using `exists_q_reduced_representative` and `q_reduced_superstable_correspondence_lemma`.
+    Proven using `exists_q_reduced_representative` and `q_reduced_superstable_correspondence`.
     The proof concludes that k must be -1.
 
     Dhar's algorithm produces q-reduced divisor from any divisor
