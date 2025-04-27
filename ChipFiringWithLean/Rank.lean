@@ -29,7 +29,7 @@ def maximal_unwinnable (G : CFGraph V) (D : CFDiv V) : Prop :=
   ¬winnable G D ∧ ∀ v : V, winnable G (λ w => D w + if w = v then 1 else 0)
 
 /-- Given an acyclic orientation O with a unique source q, returns a configuration c(O) -/
-def orientation_to_config (G : CFGraph V) (O : Orientation G) (q : V)
+def orientation_to_config (G : CFGraph V) (O : CFOrientation G) (q : V)
     (h_acyclic : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) : Config V q :=
   config_of_source h_acyclic h_unique_source
 

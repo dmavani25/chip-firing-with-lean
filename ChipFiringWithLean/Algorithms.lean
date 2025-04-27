@@ -1,5 +1,6 @@
 import ChipFiringWithLean.Basic
 import ChipFiringWithLean.Config
+import ChipFiringWithLean.Orientation
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.List.Basic
@@ -206,5 +207,64 @@ noncomputable def isWinnable (G : CFGraph V) (q : V) (D : CFDiv V) : Bool :=
   match findQReducedDivisor G q D with
   | none => false -- Reduction process failed (preprocessing or main loop fuel)
   | some D_q => D_q q >= 0
+
+/--
+Helper to calculate incoming "burning" degree for vertex `v` from set `B`.
+Sums `num_edges` from `u` in `B` to `v`.
+-/
+def burning_indeg (G : CFGraph V) (B : Finset V) (v : V) : ℤ :=
+  ∑ u in B, (num_edges G u v : ℤ)
+
+/--
+Orientation-based Dhar's Algorithm (Algorithm 5).
+Takes a nonnegative configuration `c` relative to `q`.
+Returns the final stable set `S ⊆ V \ {q}` (empty iff `c` is superstable)
+and a multiset `O` of directed edges `(u, v)` where fire spread from `u` to `v`.
+
+Note: Assumes `c` is non-negative on `V \ {q}`.
+The returned multiset `O` represents the edges oriented *by* the burning process.
+It may not form a complete `CFOrientation` structure directly if not all edges are involved.
+-/
+@[simp]
+noncomputable def dharBurningSetWithOrientation (G : CFGraph V) (q : V) (c : V → ℤ)
+  : Finset V × Multiset (V × V) :=
+  let initial_S := Finset.univ.erase q
+  let initial_B := {q}
+  let initial_O := (∅ : Multiset (V × V))
+
+  let rec loop (current_S : Finset V) (current_B : Finset V) (current_O : Multiset (V × V)) (fuel : Nat)
+    : Finset V × Multiset (V × V) :=
+    if h_fuel : fuel = 0 then (current_S, current_O) -- Fuel exhausted, return current state
+    else
+      -- Find vertices in S that burn in this step
+      let newly_burned_list := current_S.toList.filter (fun v => burning_indeg G current_B v > c v)
+      let newly_burned := newly_burned_list.toFinset -- Use List.toFinset
+
+      -- If no new vertices burned, the process stabilizes
+      if newly_burned.card = 0 then (current_S, current_O) -- Use card = 0 check
+      else
+        -- Update S and B
+        let next_S := current_S.filter (fun v => v ∉ newly_burned) -- Manual set difference
+        let next_B := current_B ∪ newly_burned
+
+        -- Update Orientation: Add edges from current_B to newly_burned
+        -- Use Finset.sum for clarity and potentially better type inference
+        let edges_to_add : Multiset (V × V) :=
+          Finset.sum newly_burned (fun v_new => -- Sum over newly burned vertices
+            Finset.sum current_B (fun u => -- For each u in the burning set
+              Multiset.replicate (num_edges G u v_new) (u, v_new) -- Create edges u -> v_new
+            )
+          )
+
+        let next_O := current_O + edges_to_add
+
+        -- Recurse
+        loop next_S next_B next_O (fuel - 1)
+
+  termination_by fuel
+  decreasing_by simp_wf; exact Nat.pos_of_ne_zero h_fuel -- Use robust termination proof
+
+  -- Initial call with fuel based on number of vertices
+  loop initial_S initial_B initial_O (Fintype.card V + 1)
 
 end CF

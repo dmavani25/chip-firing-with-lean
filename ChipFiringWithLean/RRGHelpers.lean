@@ -79,7 +79,7 @@ theorem q_reduced_effective_implies_winnable (G : CFGraph V) (q : V) (D : CFDiv 
 
 /-- [Proven] Lemma 4.1.10: An acyclic orientation is uniquely determined by its indegree sequence -/
 theorem acyclic_orientation_unique_by_indeg {G : CFGraph V}
-  (O O' : Orientation G)
+  (O O' : CFOrientation G)
   (h_acyclic : is_acyclic G O)
   (h_acyclic' : is_acyclic G O')
   (h_indeg : ∀ v : V, indeg G O v = indeg G O' v) :
@@ -88,7 +88,7 @@ theorem acyclic_orientation_unique_by_indeg {G : CFGraph V}
   exact helper_orientation_determined_by_levels O O' h_acyclic h_acyclic' h_indeg
 
 /-- [Proven] Lemma 4.1.10 (Alternative Form): Two acyclic orientations with same indegree sequences are equal -/
-theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : Orientation G)
+theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : CFOrientation G)
     (h_acyclic : is_acyclic G O) (h_acyclic' : is_acyclic G O')
     (h_indeg : ∀ v : V, indeg G O v = indeg G O' v) :
     O = O' := by
@@ -98,13 +98,13 @@ theorem acyclic_equal_of_same_indeg {G : CFGraph V} (O O' : Orientation G)
 /-- [Proven] Proposition 4.1.11: Bijection between acyclic orientations with source q
     and maximal superstable configurations -/
 theorem stable_bijection (G : CFGraph V) (q : V) :
-    let α := {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)};
+    let α := {O : CFOrientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)};
     let β := {c : Config V q // maximal_superstable G c};
     let f_raw : α → Config V q := λ O_sub => orientation_to_config G O_sub.val q O_sub.prop.1 O_sub.prop.2;
     let f : α → β := λ O_sub => ⟨f_raw O_sub, helper_orientation_config_maximal G O_sub.val q O_sub.prop.1 O_sub.prop.2⟩;
     Function.Bijective f := by
   -- Define the domain and codomain types explicitly (can be removed if using let like above)
-  let α := {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}
+  let α := {O : CFOrientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}
   let β := {c : Config V q // maximal_superstable G c}
   -- Define the function f_raw : α → Config V q
   let f_raw : α → Config V q := λ O_sub => orientation_to_config G O_sub.val q O_sub.prop.1 O_sub.prop.2
@@ -397,7 +397,7 @@ theorem maximal_unwinnable_deg {V : Type} [DecidableEq V] [Fintype V]
     2) Any maximal unwinnable divisor has degree equal to genus - 1. -/
 theorem acyclic_orientation_maximal_unwinnable_correspondence_and_degree
     {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (q : V) :
-    (Function.Injective (λ (O : {O : Orientation G // is_acyclic G O ∧ is_source G O q}) =>
+    (Function.Injective (λ (O : {O : CFOrientation G // is_acyclic G O ∧ is_source G O q}) =>
       λ v => (indeg G O.val v) - if v = q then 1 else 0)) ∧
     (∀ D : CFDiv V, maximal_unwinnable G D → deg D = genus G - 1) := by
   constructor
@@ -533,7 +533,7 @@ theorem rank_degree_inequality {V : Type} [DecidableEq V] [Fintype V]
   rcases h_surj ⟨c', h_max'⟩ with ⟨O_subtype, h_eq_c'⟩ -- O_subtype is {O // acyclic ∧ unique_source}
 
   -- Get configuration c' from orientation O_subtype
-  -- O_subtype.val is the Orientation, O_subtype.prop.1 is acyclicity, O_subtype.prop.2 is uniqueness
+  -- O_subtype.val is the CFOrientation, O_subtype.prop.1 is acyclicity, O_subtype.prop.2 is uniqueness
   let c'_config := orientation_to_config G O_subtype.val q O_subtype.prop.1 O_subtype.prop.2
 
   -- Check consistency: h_eq_c' implies c'_config = c'

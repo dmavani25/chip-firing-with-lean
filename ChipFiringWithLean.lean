@@ -4,6 +4,7 @@ import ChipFiringWithLean.Basic
 import ChipFiringWithLean.CFGraphExample
 import ChipFiringWithLean.Config
 import ChipFiringWithLean.Orientation
+import ChipFiringWithLean.Algorithms
 import ChipFiringWithLean.Rank
 import ChipFiringWithLean.Helpers
 import ChipFiringWithLean.RRGHelpers

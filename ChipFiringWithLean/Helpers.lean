@@ -87,12 +87,12 @@ axiom helper_q_reduced_of_effective_is_effective (G : CFGraph V) (q : V) (E E' :
 /-- Axiom: A non-empty graph with an acyclic orientation must have at least one source.
     Proving this inductively is a bit tricky at the moment, and we ran into infinite recursive loop,
     thus we are declaring this as an axiom for now. -/
-axiom helper_acyclic_has_source (G : CFGraph V) (O : Orientation G) :
+axiom helper_acyclic_has_source (G : CFGraph V) (O : CFOrientation G) :
   is_acyclic G O → ∃ v : V, is_source G O v
 
 /-- [Proven] Helper theorem: Two orientations are equal if they have the same directed edges -/
 theorem helper_orientation_eq_of_directed_edges {G : CFGraph V}
-  (O O' : Orientation G) :
+  (O O' : CFOrientation G) :
   O.directed_edges = O'.directed_edges → O = O' := by
   intro h
   -- Use cases to construct the equality proof
@@ -107,7 +107,7 @@ theorem helper_orientation_eq_of_directed_edges {G : CFGraph V}
     Proving this inductively is a bit tricky at the moment, and we ran into infinite recursive loop,
     thus we are declaring this as an axiom for now. -/
 axiom helper_orientation_determined_by_levels {G : CFGraph V}
-  (O O' : Orientation G) :
+  (O O' : CFOrientation G) :
   is_acyclic G O → is_acyclic G O' →
   (∀ v : V, indeg G O v = indeg G O' v) →
   O = O'
@@ -124,7 +124,7 @@ axiom helper_orientation_determined_by_levels {G : CFGraph V}
           Only to be used to define a superstable configuration from an acyclic orientation with source q as a Prop.
    This was especially hard to prove in Lean4, so we are leaving it as an axiom for now.
 -/
-axiom helper_orientation_config_superstable (G : CFGraph V) (O : Orientation G) (q : V)
+axiom helper_orientation_config_superstable (G : CFGraph V) (O : CFOrientation G) (q : V)
     (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
     superstable G q (orientation_to_config G O q h_acyc h_unique_source)
 
@@ -132,12 +132,12 @@ axiom helper_orientation_config_superstable (G : CFGraph V) (O : Orientation G) 
           Only to be used to define a maximal superstable configuration from an acyclic orientation with source q as a Prop.
    This was especially hard to prove in Lean4, so we are leaving it as an axiom for now.
 -/
-axiom helper_orientation_config_maximal (G : CFGraph V) (O : Orientation G) (q : V)
+axiom helper_orientation_config_maximal (G : CFGraph V) (O : CFOrientation G) (q : V)
     (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
     maximal_superstable G (orientation_to_config G O q h_acyc h_unique_source)
 
-/-- [Proven] Helper lemma: Orientation to config preserves indegrees -/
-lemma orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
+/-- [Proven] Helper lemma: CFOrientation to config preserves indegrees -/
+lemma orientation_to_config_indeg (G : CFGraph V) (O : CFOrientation G) (q : V)
     (h_acyclic : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) (v : V) :
     (orientation_to_config G O q h_acyclic h_unique_source).vertex_degree v =
     if v = q then 0 else (indeg G O v : ℤ) - 1 := by
@@ -147,14 +147,14 @@ lemma orientation_to_config_indeg (G : CFGraph V) (O : Orientation G) (q : V)
   exact rfl
 
 /-- [Proven] Helper lemma: Two acyclic orientations with same indegrees are equal -/
-lemma orientation_unique_by_indeg {G : CFGraph V} (O₁ O₂ : Orientation G)
+lemma orientation_unique_by_indeg {G : CFGraph V} (O₁ O₂ : CFOrientation G)
     (h_acyc₁ : is_acyclic G O₁) (h_acyc₂ : is_acyclic G O₂)
     (h_indeg : ∀ v : V, indeg G O₁ v = indeg G O₂ v) : O₁ = O₂ := by
   -- Apply the helper statement directly since we have exactly matching hypotheses
   exact helper_orientation_determined_by_levels O₁ O₂ h_acyc₁ h_acyc₂ h_indeg
 
 /-- [Proven] Helper lemma to show indegree of source is 0 -/
-lemma source_indeg_zero {G : CFGraph V} (O : Orientation G) (v : V)
+lemma source_indeg_zero {G : CFGraph V} (O : CFOrientation G) (v : V)
     (h_src : is_source G O v) : indeg G O v = 0 := by
   -- By definition of is_source in terms of indeg
   unfold is_source at h_src
@@ -166,7 +166,7 @@ theorem helper_config_to_orientation_unique (G : CFGraph V) (q : V)
     (c : Config V q)
     (h_super : superstable G q c)
     (h_max : maximal_superstable G c)
-    (O₁ O₂ : Orientation G)
+    (O₁ O₂ : CFOrientation G)
     (h_acyc₁ : is_acyclic G O₁)
     (h_acyc₂ : is_acyclic G O₂)
     (h_src₁ : is_source G O₁ q)
@@ -204,7 +204,7 @@ theorem helper_config_to_orientation_unique (G : CFGraph V) (q : V)
 
 /-- [Proven] Helper lemma to convert between configuration equality forms -/
 lemma helper_config_eq_of_subtype_eq {G : CFGraph V} {q : V}
-    {O₁ O₂ : {O : Orientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}}
+    {O₁ O₂ : {O : CFOrientation G // is_acyclic G O ∧ (∀ w, is_source G O w → w = q)}}
     (h : orientation_to_config G O₁.val q O₁.prop.1 O₁.prop.2 =
          orientation_to_config G O₂.val q O₂.prop.1 O₂.prop.2) :
     orientation_to_config G O₂.val q O₂.prop.1 O₂.prop.2 =
@@ -221,7 +221,7 @@ axiom helper_maximal_superstable_exists (G : CFGraph V) (q : V) (c : Config V q)
     This was especially hard to prove in Lean4, so we are leaving it as an axiom for now. -/
 axiom helper_maximal_superstable_orientation (G : CFGraph V) (q : V) (c : Config V q)
     (h_max : maximal_superstable G c) :
-    ∃ (O : Orientation G) (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q),
+    ∃ (O : CFOrientation G) (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q),
       orientation_to_config G O q h_acyc h_unique_source = c
 
 
@@ -703,7 +703,7 @@ axiom Fintype.exists_elem (V : Type) [Fintype V] : ∃ x : V, True
 
 /-- [Proven] Helper lemma: Source vertices have equal indegree (zero) when v = q -/
 lemma helper_source_indeg_eq_at_q {V : Type} [DecidableEq V] [Fintype V]
-    (G : CFGraph V) (O₁ O₂ : Orientation G) (q v : V)
+    (G : CFGraph V) (O₁ O₂ : CFOrientation G) (q v : V)
     (h_src₁ : is_source G O₁ q = true) (h_src₂ : is_source G O₂ q = true)
     (hv : v = q) :
     indeg G O₁ v = indeg G O₂ v := by
