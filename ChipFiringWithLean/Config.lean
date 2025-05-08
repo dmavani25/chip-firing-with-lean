@@ -70,13 +70,40 @@ def superstable (G : CFGraph V) (q : V) (c : Config V q) : Prop :=
 def maximal_superstable {q : V} (G : CFGraph V) (c : Config V q) : Prop :=
   superstable G q c ∧ ∀ c' : Config V q, superstable G q c' → config_ge c' c
 
-/-- Axiom: Defining winnability of configurations through linear equivalence and chip addition.
-    Used to show that adding a chip at any non-q vertex results in a winnable configuration
-    when starting from a linearly equivalent divisor to a maximal superstable configuration.
-    Proving this inductively is a bit tricky at the moment, and we ran into infinite recursive loop,
-    thus we are declaring this as an axiom. -/
-axiom winnable_through_equiv_and_chip (G : CFGraph V) (q : V) (D : CFDiv V) (c : Config V q) :
-  linear_equiv G D (λ v => c.vertex_degree v - if v = q then 1 else 0) →
-  maximal_superstable G c →
-  ∀ v : V, v ≠ q →
-  winnable G (λ w => D w + if w = v then 1 else 0)
+/-- A divisor with one chip at a specified vertex `v_chip` and zero chips elsewhere. -/
+def one_chip (v_chip : V) : CFDiv V :=
+  fun v => if v = v_chip then 1 else 0
+
+lemma smul_one_chip (k : ℤ) (v_chip : V) :
+  (k • one_chip v_chip) = (fun v => if v = v_chip then k else 0) := by
+  funext v
+  rw [Pi.smul_apply]; unfold one_chip
+  split_ifs with h
+  · simp -- Goal is k • 1 = k
+  · simp -- Goal is k • 0 = 0
+
+-- Helper lemma: If D₁ ~ D₂, then D₁ + D ~ D₂ + D
+lemma linear_equiv_add_congr_right_local {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) (D_add : CFDiv V) {D1 D2 : CFDiv V} (h : linear_equiv G D1 D2) :
+  linear_equiv G (D1 + D_add) (D2 + D_add) := by
+  unfold linear_equiv at h ⊢
+  have h_eq : (D2 + D_add) - (D1 + D_add) = D2 - D1 := by abel
+  rw [h_eq]
+  exact h
+
+-- Helper lemma: Winnability is preserved under linear equivalence
+lemma winnable_congr_local {V : Type} [DecidableEq V] [Fintype V]
+    (G : CFGraph V) {D1 D2 : CFDiv V} (h_equiv : linear_equiv G D1 D2) :
+  winnable G D1 ↔ winnable G D2 := by
+  unfold winnable
+  simp only [Div_plus, Set.mem_setOf_eq]
+  apply Iff.intro
+  { intro hw1
+    rcases hw1 with ⟨E, hE_effective, hD1E_equiv⟩
+    use E
+    exact ⟨hE_effective, (linear_equiv_is_equivalence G).trans ((linear_equiv_is_equivalence G).symm h_equiv) hD1E_equiv⟩
+  }
+  { intro hw2
+    rcases hw2 with ⟨E, hE_effective, hD2E_equiv⟩
+    use E
+    exact ⟨hE_effective, (linear_equiv_is_equivalence G).trans h_equiv hD2E_equiv⟩
+  }

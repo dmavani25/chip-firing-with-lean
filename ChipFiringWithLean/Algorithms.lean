@@ -38,8 +38,8 @@ Returns `(winnable, script)` where `winnable` is true if an effective divisor is
 and `script` is the net borrowing count for each vertex if winnable.
 -/
 @[simp]
-noncomputable def greedyWinnable (G : CFGraph V) (D : CFDiv V) : Bool × Option (firing_script V) := -- Use firing_script
-  let rec loop (current_D : CFDiv V) (M : Finset V) (script : firing_script V) (fuel : Nat) : Bool × Option (firing_script V) :=
+noncomputable def greedyWinnable (G : CFGraph V) (D : CFDiv V) : Bool × Option (CFDiv V) := -- Changed to CFDiv V
+  let rec loop (current_D : CFDiv V) (M : Finset V) (script : CFDiv V) (fuel : Nat) : Bool × Option (CFDiv V) := -- Changed to CFDiv V
     if h_fuel_zero : fuel = 0 then (false, none) -- Fuel exhaustion implies failure
     else if is_effective current_D then (true, some script)
     else if M = Finset.univ then (false, none) -- All vertices borrowed, still not effective
@@ -50,7 +50,7 @@ noncomputable def greedyWinnable (G : CFGraph V) (D : CFDiv V) : Bool × Option 
           let next_D := borrowing_move G current_D v
           let next_M := insert v M -- Correct insert syntax
           -- Update script: decrement count for borrowing vertex v
-          let next_script : firing_script V := fun vertex => if vertex = v then script v - 1 else script v
+          let next_script : CFDiv V := script - one_chip v -- Type is now CFDiv V
           loop next_D next_M next_script (fuel - 1)
       | none => -- No vertex in V \ M is in debt, but D is not effective.
           -- This state implies unwinnability because we can't make progress.
@@ -59,7 +59,7 @@ noncomputable def greedyWinnable (G : CFGraph V) (D : CFDiv V) : Bool × Option 
   decreasing_by simp_wf; exact Nat.pos_of_ne_zero h_fuel_zero -- Simpler explicit proof
   -- Initial call with generous fuel
   let max_fuel := Fintype.card V * Fintype.card V
-  loop D ∅ (fun _ => 0) max_fuel -- Start with zero script (V → ℤ)
+  loop D ∅ (0 : CFDiv V) max_fuel -- Initialize script as (0 : CFDiv V)
 
 /--
 Calculates the out-degree of a vertex `v` with respect to a set `S`.
