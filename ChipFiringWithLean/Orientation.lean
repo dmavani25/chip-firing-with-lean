@@ -5,6 +5,10 @@ import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset
+import Mathlib.Order.WellFounded
+import Mathlib.Data.List.Basic
+import Mathlib.Data.List.Lemmas
+import Mathlib.Data.List.Cycle
 import ChipFiringWithLean.Basic
 import ChipFiringWithLean.Config
 import Paperproof
@@ -53,44 +57,6 @@ def is_sink (G : CFGraph V) (O : CFOrientation G) (v : V) : Bool :=
 def is_directed_edge (G : CFGraph V) (O : CFOrientation G) (u v : V) : Bool :=
   (u, v) ∈ O.directed_edges
 
-/-- Axiom: Well-foundedness of vertex levels
-    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
-axiom vertex_measure_decreasing (G : CFGraph V) (O : CFOrientation G) (v : V) :
-  is_source G O v = false →
-  ∀ u, is_directed_edge G O u v = true →
-  (univ.filter (λ w => is_directed_edge G O w u)).card <
-  (univ.filter (λ w => is_directed_edge G O w v)).card
-
-/-- Axiom: If u is in the filter set for vertex_level calculation of v,
-    then there is a directed edge from u to v
-    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
-axiom filter_implies_directed_edge (G : CFGraph V) (O : CFOrientation G) (v u : V) :
-  u ∈ univ.filter (λ w => is_directed_edge G O w v) →
-  is_directed_edge G O u v = true
-
-/-- Axiom: Filter membership for vertex levels
-    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
-axiom vertex_filter_membership (G : CFGraph V) (O : CFOrientation G) (v u : V) :
-  u ∈ univ.filter (λ w => is_directed_edge G O w v)
-
-/-- The level of a vertex is its position in the topological ordering -/
-def vertex_level (G : CFGraph V) (O : CFOrientation G) (v : V) : ℕ :=
-  if h : is_source G O v then 0
-  else Nat.succ (Finset.sup (univ.filter (λ u => is_directed_edge G O u v))
-                            (λ u => vertex_level G O u))
-termination_by
-  Finset.card (univ.filter (λ u => is_directed_edge G O u v))
-decreasing_by {
-  apply vertex_measure_decreasing G O v
-  · exact eq_false_of_ne_true h
-  · apply filter_implies_directed_edge G O v u
-    exact vertex_filter_membership G O v u
-}
-
-/-- Vertices at a given level in the orientation -/
-def vertices_at_level (G : CFGraph V) (O : CFOrientation G) (l : ℕ) : Finset V :=
-  univ.filter (λ v => vertex_level G O v = l)
-
 /-- Helper function for safe list access -/
 def list_get_safe {α : Type} (l : List α) (i : Nat) : Option α :=
   l.get? i
@@ -99,6 +65,8 @@ def list_get_safe {α : Type} (l : List α) (i : Nat) : Option α :=
 structure DirectedPath (G : CFGraph V) (O : CFOrientation G) where
   /-- The sequence of vertices in the path -/
   vertices : List V
+  /-- Path must not be empty (at least one vertex) -/
+  non_empty : vertices.length > 0
   /-- Every consecutive pair forms a directed edge -/
   valid_edges : ∀ (i : Nat), i + 1 < vertices.length →
     match (vertices.get? i, vertices.get? (i + 1)) with
@@ -119,8 +87,12 @@ structure DirectedCycle (G : CFGraph V) (O : CFOrientation G) :=
     match (vertices.get? i, vertices.get? (i + 1)) with
     | (some u, some v) => is_directed_edge G O u v
     | _ => False)
-  /-- The cycle condition: the first vertex equals the last, ensuring a closed loop. -/
-  (cycle_condition : vertices.length > 0 ∧ vertices.get? 0 = vertices.get? (vertices.length - 1))
+  /-- The cycle condition: first vertex equals last, and at least one edge.
+      Length > 1 means at least 2 vertices, e.g., [v, v] for a self-loop (1 edge). -/
+  (cycle_condition : vertices.length > 1 ∧
+    match (vertices.get? 0, vertices.get? (vertices.length - 1)) with
+    | (some start_node, some end_node) => start_node = end_node
+    | _ => False) -- Should not be hit if vertices.length > 1
   /-- All internal vertices (ignoring the last vertex which is the same as the first)
       are distinct from each other. This ensures there are no other repeated vertices
       besides the repetition at the end forming the cycle. -/
@@ -144,11 +116,71 @@ def consistent_edge_directions (G : CFGraph V) (O : CFOrientation G) : Prop :=
     maintains consistent edge directions between vertices -/
 def is_acyclic (G : CFGraph V) (O : CFOrientation G) : Prop :=
   consistent_edge_directions G O ∧
-  ¬∃ p : DirectedPath G O,
-    p.vertices.length > 0 ∧
-    match (p.vertices.get? 0, p.vertices.get? (p.vertices.length - 1)) with
-    | (some u, some v) => u = v
-    | _ => False
+  ¬∃ (c : DirectedCycle G O), True
+
+/-- The set of ancestors of a vertex v (nodes x such that there is a path x -> ... -> v) -/
+noncomputable def ancestors (G : CFGraph V) (O : CFOrientation G) (v : V) : Finset V :=
+  let R : V → V → Prop := fun a b => is_directed_edge G O a b = true
+  open Classical in univ.filter (fun x => Relation.TransGen R x v)
+
+/-- Measure for vertex_level termination: number of ancestors. -/
+noncomputable def vertexLevelMeasure (G : CFGraph V) (O : CFOrientation G) (v : V) : Nat :=
+  (ancestors G O v).card
+
+/-- Axiom: No acyclic orientation has a transitive self-loop. (This is true, but not proven here.)-/
+axiom not_trans_gen_self_of_acyclic (G : CFGraph V) (O : CFOrientation G) (h_acyclic : is_acyclic G O) (v_node : V) :
+    ¬Relation.TransGen (fun a b => is_directed_edge G O a b = true) v_node v_node
+
+/-- Key lemma for vertex_level termination -/
+lemma ancestors_card_lt_of_pred_of_acyclic
+    (G : CFGraph V) (O : CFOrientation G) (h_acyclic : is_acyclic G O)
+    {u v_call : V} (u_is_pred_of_v_call : is_directed_edge G O u v_call = true) :
+    vertexLevelMeasure G O u < vertexLevelMeasure G O v_call := by
+  let R := fun a b => is_directed_edge G O a b = true
+  apply Finset.card_lt_card
+  -- Goal: ancestors G O u ⊂ ancestors G O v_call
+  apply Finset.ssubset_def.mpr
+  constructor
+  · -- 1. ancestors G O u ⊆ ancestors G O v_call
+    intros x hx_mem_anc_u
+    simp only [ancestors, Finset.mem_filter, Finset.mem_univ, true_and] at hx_mem_anc_u ⊢
+    exact Relation.TransGen.trans hx_mem_anc_u (Relation.TransGen.single u_is_pred_of_v_call)
+  · -- 2. ¬ (ancestors G O v_call ⊆ ancestors G O u)
+    --    This is equiv to ∃ k, k ∈ (ancestors G O v_call) ∧ k ∉ (ancestors G O u)
+    --    We pick k = u.
+    intro h_contra_subset_rev -- Assume for contradiction: ancestors G O v_call ⊆ ancestors G O u
+    have u_in_anc_v_call : u ∈ ancestors G O v_call := by {
+      simp only [ancestors, Finset.mem_filter, Finset.mem_univ, true_and]
+      exact Relation.TransGen.single u_is_pred_of_v_call
+    }
+    have u_in_anc_u_from_contra : u ∈ ancestors G O u := h_contra_subset_rev u_in_anc_v_call
+    have u_not_in_anc_u_from_acyclic : u ∉ ancestors G O u := by {
+      simp only [ancestors, Finset.mem_filter, Finset.mem_univ, true_and]
+      exact not_trans_gen_self_of_acyclic G O h_acyclic u
+    }
+    exact u_not_in_anc_u_from_acyclic u_in_anc_u_from_contra
+
+/-- The level of a vertex is its position in the topological ordering -/
+noncomputable def vertex_level (G : CFGraph V) (O : CFOrientation G) (h_acyclic : is_acyclic G O) : V → Nat :=
+  let R_measure_lt (y x : V) : Prop := vertexLevelMeasure G O y < vertexLevelMeasure G O x
+  have wf_R_measure_lt : WellFounded R_measure_lt := -- Proof that the relation is well-founded
+    (InvImage.wf (vertexLevelMeasure G O) Nat.lt_wfRel.wf) -- Corrected to Nat.lt_wfRel.wf
+  WellFounded.fix wf_R_measure_lt
+    (fun (v : V) (recursive_call_handler : Π (u_rec : V), R_measure_lt u_rec v → Nat) =>
+      let predecessors := univ.filter (fun u_filter_pred => is_directed_edge G O u_filter_pred v = true)
+      predecessors.attach.sup
+        (fun (u_attached : {x // x ∈ predecessors}) =>
+          let u_val := u_attached.val
+          let proof_u_in_predecessors := u_attached.property
+          have edge_proof : is_directed_edge G O u_val v = true :=
+            (Finset.mem_filter.mp proof_u_in_predecessors).2
+          recursive_call_handler u_val (ancestors_card_lt_of_pred_of_acyclic G O h_acyclic edge_proof) + 1
+        )
+    )
+
+/-- Vertices at a given level in the orientation -/
+noncomputable def vertices_at_level (G : CFGraph V) (O : CFOrientation G) (h_acyclic : is_acyclic G O) (l : ℕ) : Finset V :=
+  univ.filter (λ v => vertex_level G O h_acyclic v = l)
 
 
 /-- Vertices that are not sources must have at least one incoming edge. -/
