@@ -6,6 +6,7 @@ import Mathlib.Tactic.Abel
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset
 import Mathlib.Tactic
+import Mathlib.Algebra.Ring.Int
 
 import Init.Core
 import Init.NotationExtra
@@ -173,17 +174,20 @@ lemma divisor_sub_eq_lambda (G : CFGraph V) (D₁ D₂ : CFDiv V) :
 
 -- Number of edges between two vertices as an integer
 def num_edges (G : CFGraph V) (v w : V) : ℕ :=
-  ↑(Multiset.card (G.edges.filter (λ e => e = (v, w) ∨ e = (w, v))))
+  Multiset.card (G.edges.filter (λ e => e = (v, w) ∨ e = (w, v)))
 
 -- Lemma: Number of edges is non-negative
 lemma num_edges_nonneg (G : CFGraph V) (v w : V) :
   num_edges G v w ≥ 0 := by
-  unfold num_edges
-  apply Nat.cast_nonneg
+  exact Nat.zero_le (num_edges G v w)
 
 -- Degree (Valence) of a vertex as an integer
 def vertex_degree (G : CFGraph V) (v : V) : ℤ :=
   ↑(Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v)))
+
+-- Axiom: Vertex degree is equal to the sum of the number of edges incident to the vertex
+axiom vertex_degree_eq_sum_num_edges (G : CFGraph V) (v : V) :
+  vertex_degree G v = ∑ u : V, ↑(num_edges G v u)
 
 -- Lemma: Vertex degree is non-negative
 lemma vertex_degree_nonneg (G : CFGraph V) (v : V) :
@@ -291,9 +295,81 @@ def complete_linear_system (G: CFGraph V) (D: CFDiv V) : Set (CFDiv V) :=
 def deg (D : CFDiv V) : ℤ := ∑ v, D v
 def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 
-/-- Axiomatic Definition: Linear equivalence preserves degree of divisors -/
-axiom linear_equiv_preserves_deg {V : Type} [DecidableEq V] [Fintype V]
-  (G : CFGraph V) (D D' : CFDiv V) (h : linear_equiv G D D') : deg D = deg D'
+lemma num_edges_self_eq_zero (G : CFGraph V) (v : V) :
+  num_edges G v v = 0 := by
+  simp only [num_edges, or_self]
+  apply Multiset.card_eq_zero.mpr
+  rw [Multiset.filter_eq_nil]
+  intro candidate_edge h_candidate_in_G_edges
+  by_contra h_candidate_is_loop_form
+  rw [h_candidate_is_loop_form] at h_candidate_in_G_edges
+  have h_loopless_prop_equiv : isLoopless_prop G.edges ↔ isLoopless G.edges = true :=
+    isLoopless_prop_bool_equiv G.edges
+  have h_actual_loopless_prop : isLoopless_prop G.edges :=
+    h_loopless_prop_equiv.mpr G.loopless
+  exact (h_actual_loopless_prop v) h_candidate_in_G_edges
+
+lemma vertex_degree_eq_sum_diff_singleton (G : CFGraph V) (v_fire : V) :
+  vertex_degree G v_fire = ∑ u ∈ Finset.univ \ {v_fire}, ↑(num_edges G v_fire u) := by
+  rw [vertex_degree_eq_sum_num_edges G v_fire]
+  rw [Finset.sum_eq_add_sum_diff_singleton (Finset.mem_univ v_fire)]
+  rw [num_edges_self_eq_zero G v_fire]
+  simp only [Nat.cast_zero, zero_add]
+
+lemma deg_firing_vector_eq_zero (G : CFGraph V) (v_fire : V) :
+  deg (firing_vector G v_fire) = 0 := by
+  unfold deg firing_vector
+  rw [Finset.sum_ite]
+  simp
+  rw [vertex_degree_eq_sum_diff_singleton G v_fire]
+  have h_filter_eq_diff : Finset.filter (fun x => ¬x = v_fire) univ = univ \ {v_fire} := by
+    ext x
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_sdiff, Finset.mem_singleton]
+  have h_filter_eq_single : Finset.filter (fun x => x = v_fire) univ = {v_fire} := by
+    ext x
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton, eq_comm]
+  rw [h_filter_eq_diff, h_filter_eq_single, Finset.card_singleton]
+  simp
+
+lemma deg_add (D₁ D₂ : CFDiv V) : deg (D₁ + D₂) = deg D₁ + deg D₂ := by
+  unfold deg
+  simp only [add_apply, Finset.sum_add_distrib]
+
+lemma deg_zero : deg (0 : CFDiv V) = 0 := by
+  unfold deg
+  simp only [zero_apply, Finset.sum_const_zero]
+
+lemma deg_neg (D : CFDiv V) : deg (-D) = - deg D := by
+  unfold deg
+  simp only [neg_apply, Finset.sum_neg_distrib]
+
+theorem linear_equiv_preserves_deg (G : CFGraph V) (D D' : CFDiv V) (h_equiv : linear_equiv G D D') :
+  deg D = deg D' := by
+  unfold linear_equiv at h_equiv
+  have h_deg_diff_zero : deg (D' - D) = 0 := by
+    refine AddSubgroup.closure_induction h_equiv ?_ ?_ ?_ ?_
+    · -- Case 1: Elements from S = Set.range (firing_vector G)
+      intro x hx_in_S -- hx_in_S : x ∈ Set.range (firing_vector G)
+      -- Goal: deg x = 0
+      rcases hx_in_S with ⟨v, rfl⟩ -- Destructure hx_in_S to get v and substitute x = firing_vector G v
+      exact deg_firing_vector_eq_zero G v
+    · -- Case 2: The zero element
+      -- Goal: deg 0 = 0
+      exact deg_zero
+    · -- Case 3: Sum of two elements satisfying the property
+      intro x y hx_deg_zero hy_deg_zero -- hx_deg_zero: deg x = 0, hy_deg_zero: deg y = 0
+      -- Goal: deg (x + y) = 0
+      rw [deg_add, hx_deg_zero, hy_deg_zero, add_zero]
+    · -- Case 4: Negative of an element satisfying the property
+      intro x hx_deg_zero -- hx_deg_zero: deg x = 0
+      -- Goal: deg (-x) = 0
+      rw [deg_neg, hx_deg_zero, neg_zero]
+
+  have h_deg_sub_eq_sub_deg : deg (D' - D) = deg D' - deg D := by
+    simp [sub_eq_add_neg, deg_add, deg_neg]
+
+  rw [h_deg_sub_eq_sub_deg] at h_deg_diff_zero
+  linarith [h_deg_diff_zero]
 
 -- Define a firing script as a function from vertices to integers
 def firing_script (V : Type) := V → ℤ
