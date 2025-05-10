@@ -141,25 +141,75 @@ theorem maximal_unwinnable_symmetry {V : Type} [DecidableEq V] [Fintype V]
       rw [←rank_neg_one_iff_unwinnable]
       linarith
     · -- Adding chip makes K-D winnable
-      intro v
-      have h_win := h_max_unwin.2 v
+      intro v -- Goal: winnable G ((K-D) + δᵥ)
+      -- Assume for contradiction that (K-D) + δᵥ is not winnable
+      by_contra h_KD_plus_chip_not_winnable
 
-      -- Define the divisors explicitly to avoid type confusion
-      let D₁ : CFDiv V := λ w => D w + if w = v then 1 else 0
-      let D₂ : CFDiv V := λ w => canonical_divisor G w - D w + if w = v then 1 else 0
+      -- If not winnable, its rank is -1
+      have h_rank_KD_plus_chip_is_neg_one : rank G (λ w => (canonical_divisor G w - D w) + (if w = v then 1 else 0)) = -1 := by
+        rw [rank_neg_one_iff_unwinnable]
+        exact h_KD_plus_chip_not_winnable
 
-      -- Show goal matches D₂
-      have h_goal : (λ w => (canonical_divisor G w - D w) + if w = v then 1 else 0) = D₂ := by
+      -- Let E = (K-D) + δᵥ
+      let E : CFDiv V := λ w => (canonical_divisor G w - D w) + (if w = v then 1 else 0)
+      -- have h_rank_E_is_neg_one : rank G E = -1 := h_rank_KD_plus_chip_is_neg_one -- This is just a restatement
+
+      -- Calculate deg E
+      have h_deg_E : deg E = genus G := by
+        -- E is defined as (λ w => A w + B w). We want to show deg E = genus G.
+        -- Explicitly change the goal to unfold E to see the sum structure.
+        change deg ( (λ w => canonical_divisor G w - D w) + (λ w => if w = v then 1 else 0) ) = genus G
+        -- Now the goal is deg (A + B) = genus G, where A = (K-D) and B = δᵥ.
+        rw [deg_add] -- Applies to deg (A + B), changing goal to deg A + deg B = genus G.
+        -- Goal: deg (λ w => canonical_divisor G w - D w) + deg (λ w => if w = v then 1 else 0) = genus G
+        rw [h_deg_KD] -- Substitutes deg(K-D) with (genus G - 1).
+        -- Goal: (genus G - 1) + deg (λ w => if w = v then 1 else 0) = genus G
+        -- This simplifies to showing: deg (λ w => if w = v then 1 else 0) = 1
+        have h_deg_delta_v : deg (λ w => if w = v then 1 else 0) = 1 := by
+          unfold deg
+          -- Goal: ∑ x in Finset.univ, (if x = v then 1 else 0) = 1
+          -- This sum is 1 when x=v and 0 for all other x.
+          rw [Finset.sum_eq_single_of_mem v (Finset.mem_univ v)]
+          · -- Case 1: Prove the term for x = v is indeed 1.
+            -- The term is (if v = v then 1 else 0).
+            simp only [eq_self_iff_true, if_true]
+          · -- Case 2: Prove for all x ≠ v, the term (if x = v then 1 else 0) is 0.
+            intros x _ hx_ne_v -- x is an element of Finset.univ, and x ≠ v.
+            -- The term is (if x = v then 1 else 0).
+            simp only [hx_ne_v, if_false] -- Since x ≠ v, (if x=v ...) becomes (if false ...), which is 0.
+        rw [h_deg_delta_v] -- Substitute deg(δᵥ) = 1.
+        -- Goal is now (genus G - 1) + 1 = genus G
+        ring
+
+      -- Apply Riemann-Roch to E
+      -- rank G E - rank G (K-E) = deg E - (g-1)
+      have h_RR_E := riemann_roch_for_graphs G E
+      -- Substitute rank G E = -1 and deg E = g
+      rw [h_rank_KD_plus_chip_is_neg_one, h_deg_E] at h_RR_E
+      -- So, -1 - rank G (K-E) = g - (g-1) = 1
+      -- This implies rank G (K-E) = -2
+
+      -- Simplify K-E
+      have h_K_minus_E_eq_D_minus_chip : (λ w => canonical_divisor G w - E w) = (λ w => D w - (if w = v then 1 else 0)) := by
         funext w
-        simp [D₂]
+        simp only [E]
+        ring -- ring should be able to solve this pointwise equality
 
-      -- Use linear equivalence to transfer winnability
-      have h_equiv := linear_equiv_add_chip G D v h_deg
-      have h_win_transfer := (helper_linear_equiv_preserves_winnability G D₁ D₂ h_equiv).mp h_win
+      -- Substitute K-E into the Riemann-Roch equation for E
+      rw [h_K_minus_E_eq_D_minus_chip] at h_RR_E
+      -- Now h_RR_E is: -1 - rank G (D - δᵥ) = 1, which means rank G (D - δᵥ) = -2
 
-      -- Apply the result
-      rw [h_goal]
-      exact h_win_transfer
+      -- This is a contradiction because rank must be ≥ -1.
+      have h_rank_D_minus_chip_ge_neg_one : rank G (λ w => D w - (if w = v then 1 else 0)) ≥ -1 := by
+        -- The rank is either -1 or non-negative.
+        by_cases h_nonneg: rank G (λ w => D w - (if w = v then 1 else 0)) ≥ 0
+        · linarith -- if non-negative, then it is ≥ -1
+        · -- If not non-negative, then it must be -1 by rank_neg_one_of_not_nonneg
+          have rank_is_neg_one := rank_neg_one_of_not_nonneg G (λ w => D w - (if w = v then 1 else 0)) h_nonneg
+          linarith [rank_is_neg_one] -- if it's -1, then it is ≥ -1
+
+      -- The contradiction comes from h_RR_E (which implies rank = -2) and h_rank_D_minus_chip_ge_neg_one (rank ≥ -1)
+      linarith [h_RR_E, h_rank_D_minus_chip_ge_neg_one]
   }
   -- Reverse direction
   { intro h_max_unwin_K

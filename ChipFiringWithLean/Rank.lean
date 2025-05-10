@@ -19,6 +19,33 @@ open Multiset Finset
 -- Assume V is a finite type with decidable equality
 variable {V : Type} [DecidableEq V] [Fintype V]
 
+-- Helper lemma: An effective divisor with degree 0 is the zero divisor.
+lemma effective_deg_zero_is_zero_divisor (D : CFDiv V) (h_eff : effective D) (h_deg_zero : deg D = 0) :
+  D = (λ _ => 0) := by
+  apply funext
+  intro v
+  have h_all_nonneg : ∀ x, D x ≥ 0 := h_eff
+  have h_sum_eq_zero : ∑ x in Finset.univ, D x = 0 := by
+    unfold deg at h_deg_zero
+    exact h_deg_zero
+  exact Finset.sum_eq_zero_iff_of_nonneg (λ x _ => h_all_nonneg x) |>.mp h_sum_eq_zero v (Finset.mem_univ v)
+
+-- Helper lemma: The zero divisor is winnable.
+lemma winnable_zero_divisor (G : CFGraph V) : winnable G (λ _ => 0) := by
+  let D₀ : CFDiv V := (λ _ => 0)
+  unfold winnable
+  simp only [Div_plus, Set.mem_setOf_eq] -- Use simp to unfold Div_plus and resolve membership
+  use D₀ -- D' = D₀
+  constructor
+  · -- D₀ is effective
+    unfold effective
+    intro v
+    simp [D₀]
+  · -- linear_equiv G D₀ D₀
+    unfold linear_equiv
+    simp only [sub_self, D₀] -- D₀ refers to the local let D₀
+    exact AddSubgroup.zero_mem (principal_divisors G)
+
 /-- Definition of maximal winnable divisor -/
 def maximal_winnable (G : CFGraph V) (D : CFDiv V) : Prop :=
   winnable G D ∧ ∀ v : V, ¬winnable G (λ w => D w + if w = v then 1 else 0)
@@ -74,7 +101,7 @@ lemma winnable_iff_exists_effective (G : CFGraph V) (D : CFDiv V) :
 
 /-- Axiom: Rank existence and uniqueness -/
 axiom rank_exists_unique (G : CFGraph V) (D : CFDiv V) :
-  ∃! r : ℤ, (r = -1 ∧ rank_eq_neg_one_wrt_winnability G D) ∨
+  ∃! r : ℤ, (r = -1 ∧ ¬(winnable G D)) ∨
     (r ≥ 0 ∧ rank_geq G D r.toNat ∧ exists_unwinnable_removal G D r.toNat ∧
      ∀ k' : ℕ, k' > r.toNat → ¬(rank_geq G D k'))
 
@@ -95,15 +122,12 @@ axiom rank_get_effective {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) 
 /-- Rank satisfies the defining properties -/
 axiom rank_spec (G : CFGraph V) (D : CFDiv V) :
   let r := rank G D
-  (r = -1 ↔ rank_eq_neg_one_wrt_winnability G D) ∧
+  (r = -1 ↔ ¬(winnable G D)) ∧
   (∀ k : ℕ, r ≥ k ↔ rank_geq G D k) ∧
   (∀ k : ℤ, k ≥ 0 → r = k ↔
     rank_geq G D k.toNat ∧
     exists_unwinnable_removal G D k.toNat ∧
     ∀ k' : ℕ, k' > k.toNat → ¬(rank_geq G D k'))
-
-/-- Axiomatic Definition: The zero divisor has rank 0 -/
-axiom zero_divisor_rank (G : CFGraph V) : rank G (λ _ => 0) = 0
 
 /-- Helpful corollary: rank = -1 exactly when divisor is not winnable -/
 theorem rank_neg_one_iff_unwinnable (G : CFGraph V) (D : CFDiv V) :
@@ -120,7 +144,7 @@ lemma rank_neg_one_of_not_nonneg {V : Type} [DecidableEq V] [Fintype V]
   have h_disjunction := h_exists_unique_spec.1
   -- Now use Or.elim on the disjunction
   apply Or.elim h_disjunction
-  · -- Case 1: rank G D = -1 ∧ rank_eq_neg_one_wrt_winnability G D
+  · -- Case 1: rank G D = -1 ∧ ¬(winnable G D)
     intro h_case1
     -- The goal is rank G D = -1, which is the first part of h_case1
     exact h_case1.1
@@ -130,14 +154,3 @@ lemma rank_neg_one_of_not_nonneg {V : Type} [DecidableEq V] [Fintype V]
     have h_nonneg : rank G D ≥ 0 := h_case2.1
     -- Derive contradiction using h_not_nonneg
     exact False.elim (h_not_nonneg h_nonneg)
-
-/-- Axiom: Linear equivalence is preserved when adding chips, provided deg D = g - 1
-    This makes sense because such a D is maximal unwinnable, and adding a chip to a maximal unwinnable divisor
-    is equivalent to adding a chip to the canonical divisor.
-    This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
-axiom linear_equiv_add_chip {V : Type} [DecidableEq V] [Fintype V]
-  (G : CFGraph V) (D : CFDiv V) (v : V)
-  (h_deg : deg D = genus G - 1) :
-  linear_equiv G
-    (λ w => D w + if w = v then 1 else 0)
-    (λ w => (canonical_divisor G w - D w) + if w = v then 1 else 0)
