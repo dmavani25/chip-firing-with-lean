@@ -13,6 +13,12 @@ import Mathlib.Data.Nat.Cast.Basic
 import Mathlib.Data.Finset.Card
 import Mathlib.Data.Int.Order.Basic
 import Mathlib.Logic.IsEmpty
+import Mathlib.Logic.Basic
+import Mathlib.Order.Minimal
+import Mathlib.Data.Fintype.Card
+import Mathlib.Data.List.OfFn
+import Mathlib.Logic.Basic
+import Mathlib.Combinatorics.Pigeonhole -- Added import
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
@@ -95,6 +101,30 @@ axiom helper_q_reduced_of_effective_is_effective (G : CFGraph V) (q : V) (E E' :
 axiom helper_acyclic_has_source (G : CFGraph V) (O : CFOrientation G) :
   is_acyclic G O → ∃ v : V, is_source G O v
 
+lemma orientation_edges_loopless (G : CFGraph V) (O : CFOrientation G) :
+    ∀ v : V, (v,v) ∉ O.directed_edges := by
+  intro v
+  have h_g_no_loop_at_v : (v,v) ∉ G.edges := by
+    exact (isLoopless_prop_bool_equiv G.edges).mpr G.loopless v
+
+  have h_g_count_loop_eq_zero : Multiset.count (v,v) G.edges = 0 :=
+    Multiset.count_eq_zero_of_not_mem h_g_no_loop_at_v
+
+  have h_count_preserving := O.count_preserving v v
+  rw [show ∀ (m : Multiset (V×V)) (p : V×V), Multiset.count p m + Multiset.count p m = 2 * Multiset.count p m by intros; rw [two_mul]] at h_count_preserving
+
+  rw [h_g_count_loop_eq_zero, mul_zero] at h_count_preserving
+  -- Now: h_count_preserving is `0 = 2 * Multiset.count (v,v) O.directed_edges`
+
+  have h_o_count_loop_eq_zero : Multiset.count (v,v) O.directed_edges = 0 := by
+    cases hv_count_o_edges : (Multiset.count (v,v) O.directed_edges) with
+    | zero => rfl
+    | succ n => -- Here, hv_count_o_edges is `count (v,v) O.directed_edges = Nat.succ n`
+      rw [hv_count_o_edges] at h_count_preserving -- h_count_preserving becomes `0 = 2 * (Nat.succ n)`
+      linarith [Nat.mul_pos (by decide : 2 > 0) (Nat.succ_pos n)] -- `0 = 2 * Nat.succ n` and `2 * Nat.succ n > 0` is a contradiction
+
+  exact (Multiset.count_eq_zero).mp h_o_count_loop_eq_zero
+
 /-- [Proven] Helper theorem: Two orientations are equal if they have the same directed edges -/
 theorem helper_orientation_eq_of_directed_edges {G : CFGraph V}
   (O O' : CFOrientation G) :
@@ -125,10 +155,16 @@ axiom helper_orientation_determined_by_levels {G : CFGraph V}
 # Helpers for Proposition 4.1.11
 -/
 
-/- Axiom: Defining a reusable block for a configuration from an acyclic orientation with source q being superstable
-          Only to be used to define a superstable configuration from an acyclic orientation with source q as a Prop.
-   This was especially hard to prove in Lean4, so we are leaving it as an axiom for now.
--/
+/-- [Proven] Helper lemma: CFOrientation to config preserves indegrees -/
+lemma orientation_to_config_indeg (G : CFGraph V) (O : CFOrientation G) (q : V)
+    (h_acyclic : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) (v : V) :
+    (orientation_to_config G O q h_acyclic h_unique_source).vertex_degree v =
+    if v = q then 0 else (indeg G O v : ℤ) - 1 := by
+  -- This follows directly from the definition of config_of_source
+  simp only [orientation_to_config] at *
+  -- Use the definition of config_of_source
+  exact rfl
+
 axiom helper_orientation_config_superstable (G : CFGraph V) (O : CFOrientation G) (q : V)
     (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
     superstable G q (orientation_to_config G O q h_acyc h_unique_source)
@@ -140,16 +176,6 @@ axiom helper_orientation_config_superstable (G : CFGraph V) (O : CFOrientation G
 axiom helper_orientation_config_maximal (G : CFGraph V) (O : CFOrientation G) (q : V)
     (h_acyc : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) :
     maximal_superstable G (orientation_to_config G O q h_acyc h_unique_source)
-
-/-- [Proven] Helper lemma: CFOrientation to config preserves indegrees -/
-lemma orientation_to_config_indeg (G : CFGraph V) (O : CFOrientation G) (q : V)
-    (h_acyclic : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) (v : V) :
-    (orientation_to_config G O q h_acyclic h_unique_source).vertex_degree v =
-    if v = q then 0 else (indeg G O v : ℤ) - 1 := by
-  -- This follows directly from the definition of config_of_source
-  simp only [orientation_to_config] at *
-  -- Use the definition of config_of_source
-  exact rfl
 
 /-- [Proven] Helper lemma: Two acyclic orientations with same indegrees are equal -/
 lemma orientation_unique_by_indeg {G : CFGraph V} (O₁ O₂ : CFOrientation G)
@@ -590,7 +616,7 @@ lemma q_reduced_superstable_correspondence (G : CFGraph V) (q : V) (D : CFDiv V)
         simp only [sub_zero]
         exact hc_lt_outdeg
 
-/- Axiom: The degree of a q-reduced divisor is at most g-1.
+/-- Axiom: The degree of a q-reduced divisor is at most g-1.
     Proving this directly requires formalizing Dhar's burning algorithm or deeper results
     relating q-reduced divisors to acyclic orientations, which is beyond the current scope.
     Attempts to prove it here encounter difficulties due to interactions
