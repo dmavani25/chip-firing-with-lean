@@ -943,4 +943,4 @@ lemma effective_nonneg_deg {V : Type} [DecidableEq V] [Fintype V]
   exact sum_nonneg (λ v _ ↦ h v)
 
 -- Axiom: Rank of zero divisor is zero
-axiom rank_of_zero_divisor_is_zero (G : CFGraph V) : rank G (λ _ => 0) = 0
+axiom zero_divisor_rank (G : CFGraph V) : rank G (λ _ => 0) = 0
