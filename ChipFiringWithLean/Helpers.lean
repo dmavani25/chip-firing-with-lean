@@ -2,6 +2,7 @@ import ChipFiringWithLean.Basic
 import ChipFiringWithLean.Config
 import ChipFiringWithLean.Orientation
 import ChipFiringWithLean.Rank
+import ChipFiringWithLean.Algorithms
 import Mathlib.Algebra.Ring.Int
 import Paperproof
 import Mathlib.Algebra.BigOperators.Group.Multiset
@@ -19,11 +20,14 @@ import Mathlib.Data.Fintype.Card
 import Mathlib.Data.List.OfFn
 import Mathlib.Logic.Basic
 import Mathlib.Combinatorics.Pigeonhole -- Added import
+import Mathlib.Data.List.Lex -- Attempt to import for List.Lex
+import Mathlib.Order.WellFounded
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
 
-open Multiset Finset
+open Multiset Finset Classical
+open CF -- Open the CF namespace globally for this file
 
 -- Assume V is a finite type with decidable equality
 variable {V : Type} [DecidableEq V] [Fintype V]
@@ -33,10 +37,31 @@ variable {V : Type} [DecidableEq V] [Fintype V]
 # Helpers for Proposition 3.2.4
 -/
 
-/- Axiom: Existence of a q-reduced representative for any divisor class
-   This was especially hard to prove in Lean4, so we are leaving it as an axiom for the time being. -/
-axiom exists_q_reduced_representative (G : CFGraph V) (q : V) (D : CFDiv V) :
-  ∃ D' : CFDiv V, linear_equiv G D D' ∧ q_reduced G q D'
+-- Lemma: Firing a vertex results in a linearly equivalent divisor.
+lemma firing_move_linear_equiv (G : CFGraph V) (D : CFDiv V) (v : V) :
+  linear_equiv G D (firing_move G D v) := by
+  unfold linear_equiv
+  have h_diff_eq_firing_vector : (firing_move G D v) - D = firing_vector G v := by
+    funext w
+    simp only [sub_apply, firing_move, firing_vector] -- Basic definition unfolding
+    by_cases H : w = v
+    · simp [H] -- Simplifies if_true branches
+    · simp [H] -- Simplifies if_false branches
+  rw [h_diff_eq_firing_vector]
+  exact AddSubgroup.subset_closure (Set.mem_range_self v)
+
+-- Helper for well-founded recursion: measure the sum of negativities outside q
+def sum_negativity_outside_q (q : V) (D : CFDiv V) : ℕ :=
+  (Finset.univ.erase q).sum (λ v => if D v < 0 then (-D v).toNat else 0)
+
+-- Helper for well-founded recursion: measure the sum of negativities outside q
+-- This is the same as the sum_negativity_outside_q function, but using a list instead of a Finset
+noncomputable def sum_negativity_outside_q_list (q : V) (D : CFDiv V) : List ℕ :=
+  (Finset.univ.erase q).toList.map (λ v => if D v < 0 then (-D v).toNat else 0)
+
+/- Axiom: Existence of a q-reduced representative within a divisor class -/
+axiom exists_q_reduced_representative (G : CFGraph V) (q : V) (D_initial : CFDiv V) :
+  ∃ D' : CFDiv V, linear_equiv G D_initial D' ∧ q_reduced G q D'
 
 /- [Proven] Helper lemma: Uniqueness of the q-reduced representative within a divisor class -/
 lemma uniqueness_of_q_reduced_representative (G : CFGraph V) (q : V) (D : CFDiv V)
@@ -107,8 +132,8 @@ lemma orientation_edges_loopless (G : CFGraph V) (O : CFOrientation G) :
   have h_g_no_loop_at_v : (v,v) ∉ G.edges := by
     exact (isLoopless_prop_bool_equiv G.edges).mpr G.loopless v
 
-  have h_g_count_loop_eq_zero : Multiset.count (v,v) G.edges = 0 :=
-    Multiset.count_eq_zero_of_not_mem h_g_no_loop_at_v
+  have h_g_count_loop_eq_zero : Multiset.count (v,v) G.edges = 0 := by
+    exact Multiset.count_eq_zero_of_not_mem h_g_no_loop_at_v
 
   have h_count_preserving := O.count_preserving v v
   rw [show ∀ (m : Multiset (V×V)) (p : V×V), Multiset.count p m + Multiset.count p m = 2 * Multiset.count p m by intros; rw [two_mul]] at h_count_preserving
@@ -970,3 +995,31 @@ lemma effective_nonneg_deg {V : Type} [DecidableEq V] [Fintype V]
 
 -- Axiom: Rank of zero divisor is zero
 axiom zero_divisor_rank (G : CFGraph V) : rank G (λ _ => 0) = 0
+
+-- Lemma: Firing a set of vertices results in a linearly equivalent divisor.
+lemma fireSet_linear_equiv (G : CFGraph V) (D_initial_acc : CFDiv V) (S : Finset V) :
+  linear_equiv G D_initial_acc (CF.fireSet G D_initial_acc S) := by
+  unfold CF.fireSet
+  let F_fold := fun (current_D_fold : CFDiv V) (v_fold : V) => firing_move G current_D_fold v_fold
+
+  revert D_initial_acc -- Generalize the initial accumulator for the fold.
+
+  induction S.toList with -- Induct directly on S.toList
+  | nil =>
+    intro acc_for_nil_case -- acc_for_nil_case is the universally quantified accumulator for the nil case.
+    -- Goal: linear_equiv G acc_for_nil_case (List.foldl F_fold acc_for_nil_case [])
+    simp only [List.foldl_nil] -- Use simp_only for precision
+    exact (linear_equiv_is_equivalence G).refl acc_for_nil_case
+  | cons v_head current_tail_list ih_for_tail =>
+    -- ih_for_tail : ∀ (acc_for_ih : CFDiv V),
+    --   linear_equiv G acc_for_ih (List.foldl F_fold acc_for_ih current_tail_list)
+    intro acc_for_cons_case -- acc_for_cons_case is the accumulator for this specific cons step.
+    -- Goal: linear_equiv G acc_for_cons_case (List.foldl F_fold acc_for_cons_case (v_head :: current_tail_list))
+    simp only [List.foldl_cons] -- Use simp_only for precision
+    -- Goal after simp: linear_equiv G acc_for_cons_case (List.foldl F_fold (F_fold acc_for_cons_case v_head) current_tail_list)
+    let D_intermediate := F_fold acc_for_cons_case v_head
+    have h_equiv_base_intermediate : linear_equiv G acc_for_cons_case D_intermediate := by
+      exact firing_move_linear_equiv G acc_for_cons_case v_head
+    have h_ih_applied : linear_equiv G D_intermediate (List.foldl F_fold D_intermediate current_tail_list) := by
+      exact ih_for_tail D_intermediate
+    exact (linear_equiv_is_equivalence G).trans h_equiv_base_intermediate h_ih_applied
