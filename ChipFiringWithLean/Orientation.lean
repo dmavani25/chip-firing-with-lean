@@ -235,7 +235,70 @@ lemma canonical_double_diff (G : CFGraph V) (D : CFDiv V) :
   (λ v => canonical_divisor G v - (canonical_divisor G v - D v)) = D := by
   funext v; simp
 
-/-- Definition (Axiomatic): Canonical divisor is sum of two acyclic orientations -/
+/- Helper: Definition of reversing an orientation -/
+def CFOrientation.reverse (G : CFGraph V) (O : CFOrientation G) : CFOrientation G where
+  directed_edges := O.directed_edges.map Prod.swap -- Use Prod.swap directly
+  count_preserving v w := by
+    rw [O.count_preserving v w]
+
+    have h_vw_rev_eq_wv_orig :
+        Multiset.count (v,w) (O.directed_edges.map Prod.swap) = Multiset.count (w,v) O.directed_edges := by
+      rw [Multiset.count_map (f := Prod.swap)]
+      rw [Multiset.count_eq_card_filter_eq] -- Or Multiset.count, Multiset.countP_eq_card_filter
+      apply congr_arg Multiset.card
+      ext e
+      simp only [Multiset.mem_filter, and_congr_left_iff, Prod.ext_iff, Prod.fst_swap, Prod.snd_swap, eq_comm, and_comm]
+
+    have h_wv_rev_eq_vw_orig :
+        Multiset.count (w,v) (O.directed_edges.map Prod.swap) = Multiset.count (v,w) O.directed_edges := by
+      rw [Multiset.count_map (f := Prod.swap)]
+      rw [Multiset.count_eq_card_filter_eq]
+      apply congr_arg Multiset.card
+      ext e
+      simp only [Multiset.mem_filter, and_congr_left_iff, Prod.ext_iff, Prod.fst_swap, Prod.snd_swap, eq_comm, and_comm]
+
+    conv_rhs =>
+      congr
+      · change Multiset.count (v,w) (O.directed_edges.map Prod.swap)
+        rw [h_vw_rev_eq_wv_orig]
+      · change Multiset.count (w,v) (O.directed_edges.map Prod.swap)
+        rw [h_wv_rev_eq_vw_orig]
+
+    rw [add_comm (Multiset.count (w,v) O.directed_edges)]
+  no_bidirectional v w := by -- The `directed_edges` for this proof is O.directed_edges.map Prod.swap
+    cases O.no_bidirectional v w with
+    | inl h_vw_O_zero => -- Multiset.count (v, w) O.directed_edges = 0
+      apply Or.inr
+      rw [Multiset.count_eq_zero]
+      intro h_wv_mem_rev_contra
+      have h_vw_mem_O_derived : (v,w) ∈ O.directed_edges := by
+        obtain ⟨p, h_p_mem_O, h_swap_p_eq_wv⟩ := Multiset.mem_map.mp h_wv_mem_rev_contra
+        have h_p_is_vw : p = (v,w) := by { apply Prod.ext; exact (Prod.mk.inj h_swap_p_eq_wv).2; exact (Prod.mk.inj h_swap_p_eq_wv).1 }
+        rwa [h_p_is_vw] at h_p_mem_O
+      exact (Multiset.count_eq_zero.mp h_vw_O_zero) h_vw_mem_O_derived
+    | inr h_wv_O_zero => -- Multiset.count (w, v) O.directed_edges = 0
+      apply Or.inl
+      rw [Multiset.count_eq_zero]
+      intro h_vw_mem_rev_contra
+      have h_wv_mem_O_derived : (w,v) ∈ O.directed_edges := by
+        obtain ⟨p, h_p_mem_O, h_swap_p_eq_vw⟩ := Multiset.mem_map.mp h_vw_mem_rev_contra
+        have h_p_is_wv : p = (w,v) := by { apply Prod.ext; exact (Prod.mk.inj h_swap_p_eq_vw).2; exact (Prod.mk.inj h_swap_p_eq_vw).1 }
+        rwa [h_p_is_wv] at h_p_mem_O
+      exact (Multiset.count_eq_zero.mp h_wv_O_zero) h_wv_mem_O_derived
+
+/- Helper: indegree in reversed orientation equals outdegree in original -/
+lemma indeg_reverse_eq_outdeg (G : CFGraph V) (O : CFOrientation G) (v : V) :
+  indeg G (O.reverse G) v = outdeg G O v := by
+  classical
+  simp only [indeg, outdeg]
+  rw [← Multiset.countP_eq_card_filter, ← Multiset.countP_eq_card_filter]
+  -- Explicitly state and use the definition of the reversed edges
+  let O_rev_edges_def : (CFOrientation.reverse G O).directed_edges = O.directed_edges.map Prod.swap := by rfl
+  conv_lhs => rw [O_rev_edges_def]
+  rw [Multiset.countP_map]
+  simp only [Function.comp_apply, Prod.snd_swap]
+  simp only [Multiset.countP_eq_card_filter]
+
 axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) :
   ∃ (O₁ O₂ : CFOrientation G),
     is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
