@@ -49,9 +49,6 @@ theorem riemann_roch_for_graphs {V : Type} [DecidableEq V] [Fintype V] (G : CFGr
     if v = q then -(k + 1)
     else c'.vertex_degree v - c.vertex_degree v
 
-  -- Get canonical divisor decomposition
-  rcases canonical_is_sum_orientations G with ⟨O₁, O₂, h_O₁_acyc, h_O₂_acyc, h_K⟩
-
   -- Get key inequality from axiom
   have h_ineq := rank_degree_inequality G D
 

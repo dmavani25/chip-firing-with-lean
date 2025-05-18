@@ -554,8 +554,3 @@ lemma is_acyclic_reverse_of_is_acyclic (G : CFGraph V) (O : CFOrientation G)
             exact h_distinct_prop;
       }
     };
-
-axiom canonical_is_sum_orientations {V : Type} [DecidableEq V] [Fintype V] (G : CFGraph V) :
-  ∃ (O₁ O₂ : CFOrientation G),
-    is_acyclic G O₁ ∧ is_acyclic G O₂ ∧
-    canonical_divisor G = λ v => divisor_of_orientation G O₁ v + divisor_of_orientation G O₂ v
