@@ -209,7 +209,7 @@ lemma indeg_minus_one_nonneg_of_not_source (G : CFGraph V) (O : CFOrientation G)
 /-- Configuration associated with a source vertex q under orientation O.
     Requires O to be acyclic and q to be the unique source.
     For each vertex v ≠ q, assigns indegree(v) - 1 chips. Assumes q is the unique source. -/
-def config_of_source {G : CFGraph V} {O : CFOrientation G} {q : V} -- Make G, O, q implicit
+def config_of_source {G : CFGraph V} {O : CFOrientation G} {q : V}
     (h_acyclic : is_acyclic G O) (h_unique_source : ∀ w, is_source G O w → w = q) : Config V q :=
   { vertex_degree := λ v => if v = q then 0 else (indeg G O v : ℤ) - 1,
     non_negative_except_q := λ v hv => by
@@ -219,7 +219,6 @@ def config_of_source {G : CFGraph V} {O : CFOrientation G} {q : V} -- Make G, O,
       · have h_not_source : ¬ is_source G O v := by
           intro hs_v
           exact hv (h_unique_source v hs_v)
-        -- Need to provide implicit arguments G O v explicitly now
         exact indeg_minus_one_nonneg_of_not_source G O v h_not_source
   }
 
@@ -294,7 +293,6 @@ lemma indeg_reverse_eq_outdeg (G : CFGraph V) (O : CFOrientation G) (v : V) :
   classical
   simp only [indeg, outdeg]
   rw [← Multiset.countP_eq_card_filter, ← Multiset.countP_eq_card_filter]
-  -- Explicitly state and use the definition of the reversed edges
   let O_rev_edges_def : (CFOrientation.reverse G O).directed_edges = O.directed_edges.map Prod.swap := by rfl
   conv_lhs => rw [O_rev_edges_def]
   rw [Multiset.countP_map]
