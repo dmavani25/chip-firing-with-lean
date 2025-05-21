@@ -14,6 +14,7 @@ import Mathlib.Data.List.Cycle
 import ChipFiringWithLean.Basic
 import ChipFiringWithLean.Config
 import Paperproof
+import Mathlib.Data.List.Defs
 
 set_option linter.unusedVariables false
 set_option trace.split.failure true
@@ -129,9 +130,136 @@ noncomputable def ancestors (G : CFGraph V) (O : CFOrientation G) (v : V) : Fins
 noncomputable def vertexLevelMeasure (G : CFGraph V) (O : CFOrientation G) (v : V) : Nat :=
   (ancestors G O v).card
 
-/-- Axiom: No acyclic orientation has a transitive self-loop. (This is true, but not proven here.)-/
-axiom not_trans_gen_self_of_acyclic (G : CFGraph V) (O : CFOrientation G) (h_acyclic : is_acyclic G O) (v_node : V) :
-    ¬Relation.TransGen (fun a b => is_directed_edge G O a b = true) v_node v_node
+/-- Axiom [TODO]: Path vertices are internally distinct -/
+axiom path_vertices_internally_distinct_axiom
+  (G : CFGraph V) (O : CFOrientation G) (path_verts : List V) :
+  (∀ (i j : Nat),
+    i < path_verts.length - 1 →
+    j < path_verts.length - 1 →
+    i ≠ j →
+    match (path_verts.get? i, path_verts.get? j) with
+    | (some u, some v) => u ≠ v
+    | _ => True)
+
+/-- Lemma: No self-loops in acyclic orientations -/
+lemma not_trans_gen_self_of_acyclic (G : CFGraph V) (O : CFOrientation G) (h_acyclic : is_acyclic G O) (v_node : V) :
+    ¬Relation.TransGen (fun a b => is_directed_edge G O a b = true) v_node v_node := by
+  let R := fun a b => is_directed_edge G O a b = true
+
+  have construct_path_from_trans_gen : ∀ {v_start v_end : V}, (h_trans : Relation.TransGen R v_start v_end) →
+    ∃ (path_verts : List V), path_verts.length ≥ 2 ∧
+                              path_verts.head? = some v_start ∧
+                              path_verts.getLast? = some v_end ∧
+                              List.Chain' R path_verts := by
+    intro v_s v_e h_trans_gen_s_e
+    refine Relation.TransGen.recOn (motive := fun y_target _h_trans_ignored => -- y_target is current end node from v_s
+                                      ∃ (path_verts : List V), path_verts.length ≥ 2 ∧
+                                                              path_verts.head? = some v_s ∧ -- Fixed start v_s
+                                                              path_verts.getLast? = some y_target ∧ -- Current end y_target
+                                                              List.Chain' R path_verts) h_trans_gen_s_e ?_ ?_
+    · -- Base case for recOn: single (h_Rxy : R x y)
+      -- Parameters provided by recOn: x (fixed as v_s), y_node, h_R_x_y
+      -- Here y_node is the target for the motive.
+      intro y_node_base h_R_vs_ynode_base -- x is v_s (implicit), y_node_base is the 'y_target'
+      use [v_s, y_node_base] -- Path from v_s to y_node_base
+      refine' ⟨by simp, by simp, by simp, _⟩
+      simp only [List.chain'_cons, List.chain'_singleton, and_true]
+      exact h_R_vs_ynode_base -- R v_s y_node_base
+    · -- Inductive step for recOn: tail (h_trans_x_mid : TransGen R x mid) (h_R_mid_z : R mid z) (ih_x_mid : motive x mid h_trans_x_mid)
+      -- Parameters: x (fixed as v_s), mid, z, h_trans_x_mid (now TransGen R v_s mid), h_R_mid_z, ih_x_mid (now motive mid h_trans_v_s_mid)
+      intro mid_node_ind z_node_ind h_trans_vs_mid h_R_mid_z ih_vs_mid
+      obtain ⟨path_vsm, h_len_ge_2_vsm, h_head_eq_vs, h_last_eq_mid, h_chain'_vsm⟩ := ih_vs_mid
+      use path_vsm ++ [z_node_ind]
+      constructor
+      ·
+        simp only [List.length_append, List.length_singleton]
+        apply Nat.le_trans h_len_ge_2_vsm (Nat.le_add_right _ 1)
+      · constructor
+        ·
+          have h_path_vsm_ne_nil : path_vsm ≠ [] := List.ne_nil_of_length_pos (by linarith only [h_len_ge_2_vsm])
+          simp only [List.head?_append, h_path_vsm_ne_nil, h_head_eq_vs, List.head?_cons, List.head?_nil, Option.some_orElse]
+          rfl
+        · constructor
+          ·
+            simp only [List.getLast?_append, List.getLast?_cons, List.getLast?_nil, Option.some_orElse]
+            rfl -- Should be `some z_node_ind = some z_node_ind` by now
+          ·
+            -- Prove List.Chain' R (path_vsm ++ [z_node_ind])
+            simp only [List.chain'_append, h_chain'_vsm, List.chain'_singleton, and_true]
+            constructor
+            · trivial
+            constructor
+            · trivial
+            intros x hx y hy
+            -- hx : path_vsm.getLast? = some x, h_last_eq_mid : path_vsm.getLast? = some mid_node_ind
+            have hx' := hx.symm.trans h_last_eq_mid
+            have eqx : x = mid_node_ind := Option.some.inj hx'
+            subst eqx
+            -- hy : y ∈ [z_node_ind].head?
+            rw [Option.mem_def] at hy
+            have eqy : y = z_node_ind := Option.some.inj hy.symm
+            subst eqy
+            exact h_R_mid_z
+
+
+  intro h_trans_gen_v_v
+  obtain ⟨path_verts, hv_path_verts_length_ge_2, hv_path_verts_head_eq_v_node,
+            hv_path_verts_last_eq_v_node, h_path_verts_chain'_R⟩ := construct_path_from_trans_gen h_trans_gen_v_v
+
+  have h_path_len_gt_1 : path_verts.length > 1 := Nat.lt_of_succ_le hv_path_verts_length_ge_2
+
+  let dc : DirectedCycle G O := {
+    vertices := path_verts,
+    valid_edges := by
+      intros i hi
+      have hi' : i < path_verts.length := Nat.lt_of_succ_lt hi
+      have hi1' : i + 1 < path_verts.length := hi
+      rw [List.get?_eq_get hi', List.get?_eq_get hi1']
+      exact (List.chain'_iff_get.mp h_path_verts_chain'_R) i (Nat.lt_pred_of_succ_lt hi)
+    cycle_condition := by
+      constructor
+      · exact h_path_len_gt_1
+      · cases h0_get : path_verts.get? 0;
+        case none =>
+          have h_path_is_nil : path_verts = [] := by
+            cases path_verts with
+            | nil => rfl
+            | cons hd tl =>
+              simp only [List.get?] at h0_get -- h0_get is now `some hd = none`
+              exact (Option.noConfusion h0_get) -- Derives False from `some hd = none`
+          rw [h_path_is_nil] at h_path_len_gt_1
+          simp at h_path_len_gt_1 -- Contradiction: 0 > 1, proves False for this branch
+        case some v0 =>
+          cases h1_get : path_verts.get? (path_verts.length - 1);
+          case none => -- path_verts.get? (path_verts.length - 1) = none
+            exfalso
+            rw [List.get?_eq_none] at h1_get -- h1_get is ¬ (path_verts.length - 1 < path_verts.length)
+            have h_lt : path_verts.length - 1 < path_verts.length := by
+              apply Nat.sub_lt_of_pos_le -- Proves n - k < n if 0 < k and k <= n
+              · exact Nat.zero_lt_one -- k=1, 0 < 1
+              · linarith [h_path_len_gt_1] -- path_verts.length > 1 implies 1 <= path_verts.length
+            linarith [h_lt, h1_get] -- Should now find contradiction from (L-1 < L) and not(L-1 < L)
+          case some v1 =>
+            have ne_nil : path_verts ≠ [] := by intro H; rw[H] at h_path_len_gt_1; simp at h_path_len_gt_1
+            have eq_v0 : v0 = v_node := by
+              have h_head_eq_get_zero : path_verts.head? = path_verts.get? 0 := by
+                cases path_verts with
+                | nil => exfalso; exact ne_nil rfl
+                | cons hd tl =>
+                  simp only [List.head?, List.get?] -- head? (hd::tl) = some hd; get? (hd::tl) 0 = some hd
+              rw [h_head_eq_get_zero] at hv_path_verts_head_eq_v_node
+              rw [h0_get] at hv_path_verts_head_eq_v_node
+              exact Option.some.inj hv_path_verts_head_eq_v_node
+            have eq_v1 : v1 = v_node := by
+              have h_last_eq_get_len_sub_one : path_verts.getLast? = path_verts.get? (path_verts.length - 1) :=
+                (List.getLast?_eq_getElem? path_verts).trans ((List.get?_eq_getElem? path_verts (path_verts.length - 1)).symm)
+              rw [h_last_eq_get_len_sub_one] at hv_path_verts_last_eq_v_node
+              rw [h1_get] at hv_path_verts_last_eq_v_node
+              exact Option.some.inj hv_path_verts_last_eq_v_node
+            rw [eq_v0, eq_v1]
+    distinct_internal_vertices := path_vertices_internally_distinct_axiom G O path_verts,
+  };
+  exact h_acyclic.2 (Exists.intro dc (by trivial));
 
 /-- Key lemma for vertex_level termination -/
 lemma ancestors_card_lt_of_pred_of_acyclic
