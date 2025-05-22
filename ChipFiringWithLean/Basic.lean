@@ -185,9 +185,73 @@ lemma num_edges_nonneg (G : CFGraph V) (v w : V) :
 def vertex_degree (G : CFGraph V) (v : V) : ℤ :=
   ↑(Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v)))
 
--- Axiom: Vertex degree is equal to the sum of the number of edges incident to the vertex
+-- Vertex degree equals sum of incident edges
+-- lemma vertex_degree_eq_sum_num_edges (G : CFGraph V) (v : V) : -- Reverting to axiom
+--   vertex_degree G v = ∑ u : V, ↑(num_edges G v u) := by
+--   unfold vertex_degree num_edges
+--   have h_vertex_degree : vertex_degree G v = ↑(Multiset.card (G.edges.filter (λ e => e.fst = v ∨ e.snd = v))) := by exact Eq.refl _
+--
+--   have h_filter_eq : G.edges.filter (λ e => e.fst = v ∨ e.snd = v) =
+--     Multiset.sum (Finset.univ.val.map (λ u => G.edges.filter (λ x => x = (v, u) ∨ x = (u, v)))) := by
+--     rw [Multiset.ext]
+--     intro e
+--     rw [Multiset.count_filter] -- LHS
+--     rw [Multiset.count_sum]   -- RHS
+--     -- simp only [Multiset.count_filter] -- Problematic simp
+--     -- rw [Multiset.sum_map_val_univ] -- Previously tried, lemma name issue
+--     -- rw [← Finset.sum_boole_mul Finset.univ (λ u => e = (v, u) ∨ e = (u, v)) (Multiset.count e G.edges)] -- Problematic rewrite
+--     sorry -- Placeholder for complex proof of h_filter_eq
+--
+--   rw [h_vertex_degree]
+--   rw [h_filter_eq]
+--   simp only [Multiset.card_sum, Multiset.card_map]
+--   apply congr_arg
+--   ext u
+--   simp only [Finset.sum_val]
+--   rfl
+
+/- TODO: Prove vertex_degree_eq_sum_num_edges
+This lemma has proven difficult to prove directly due to complexities in rewriting
+multiset and finset sums, specifically in showing:
+  G.edges.filter (λ e => e.fst = v ∨ e.snd = v) =
+  Multiset.sum (Finset.univ.val.map (λ u => G.edges.filter (λ x => x = (v, u) ∨ x = (u, v))))
+This requires using `Multiset.ext` and then carefully manipulating counts:
+1. LHS count: `if (e.fst = v ∨ e.snd = v) then count e G.edges else 0`
+2. RHS count: `∑ u:V, count e (G.edges.filter (λ x => x = (v, u) ∨ x = (u, v)))`
+   This sum needs to be transformed to `∑ u:V, (if (e = (v,u) ∨ e=(u,v)) then count e G.edges else 0)`
+   Then, `← Finset.sum_boole_mul` is used to factor out `count e G.edges`,
+   leading to `(∑ u:V, if (e=(v,u)∨e=(u,v)) then 1 else 0) * count e G.edges`.
+Subsequent steps involve `Finset.sum_boole` and `Finset.card_eq_one` based on graph properties.
+Persistent issues with `simp` not simplifying terms as expected within sums and type mismatches
+with `Finset.sum_boole_mul` suggest this proof needs more detailed, possibly offline, work.
+-/
 axiom vertex_degree_eq_sum_num_edges (G : CFGraph V) (v : V) :
   vertex_degree G v = ∑ u : V, ↑(num_edges G v u)
+
+lemma num_edges_self_eq_zero (G : CFGraph V) (v : V) :
+  num_edges G v v = 0 := by
+  simp only [num_edges, or_self]
+  apply Multiset.card_eq_zero.mpr
+  rw [Multiset.filter_eq_nil]
+  intro candidate_edge h_candidate_in_G_edges
+  by_contra h_candidate_is_loop_form
+  rw [h_candidate_is_loop_form] at h_candidate_in_G_edges
+  have h_loopless_prop_equiv : isLoopless_prop G.edges ↔ isLoopless G.edges = true :=
+    isLoopless_prop_bool_equiv G.edges
+  have h_actual_loopless_prop : isLoopless_prop G.edges :=
+    h_loopless_prop_equiv.mpr G.loopless
+  exact (h_actual_loopless_prop v) h_candidate_in_G_edges
+
+-- Lemma: Vertex degree is equal to the sum of the number of edges incident to the vertex
+-- This is a standard graph theory identity that follows from definitions
+-- Since the graph is loopless, all edges counted in vertex_degree connect v to some w ≠ v
+lemma vertex_degree_eq_sum_incident_edges (G : CFGraph V) (v : V) :
+  (vertex_degree G v : ℤ) = ∑ w in Finset.univ.erase v, (num_edges G v w : ℤ) := by
+  rw [vertex_degree_eq_sum_num_edges G v]
+  rw [Finset.sum_eq_add_sum_diff_singleton (Finset.mem_univ v)]
+  rw [num_edges_self_eq_zero G v]
+  simp only [Nat.cast_zero, zero_add]
+  rw [Finset.sdiff_singleton_eq_erase]
 
 -- Lemma: Vertex degree is non-negative
 lemma vertex_degree_nonneg (G : CFGraph V) (v : V) :
@@ -295,20 +359,6 @@ def complete_linear_system (G: CFGraph V) (D: CFDiv V) : Set (CFDiv V) :=
 def deg (D : CFDiv V) : ℤ := ∑ v, D v
 def deg_prop (D : CFDiv V) : Prop := deg D = ∑ v, D v
 
-lemma num_edges_self_eq_zero (G : CFGraph V) (v : V) :
-  num_edges G v v = 0 := by
-  simp only [num_edges, or_self]
-  apply Multiset.card_eq_zero.mpr
-  rw [Multiset.filter_eq_nil]
-  intro candidate_edge h_candidate_in_G_edges
-  by_contra h_candidate_is_loop_form
-  rw [h_candidate_is_loop_form] at h_candidate_in_G_edges
-  have h_loopless_prop_equiv : isLoopless_prop G.edges ↔ isLoopless G.edges = true :=
-    isLoopless_prop_bool_equiv G.edges
-  have h_actual_loopless_prop : isLoopless_prop G.edges :=
-    h_loopless_prop_equiv.mpr G.loopless
-  exact (h_actual_loopless_prop v) h_candidate_in_G_edges
-
 lemma vertex_degree_eq_sum_diff_singleton (G : CFGraph V) (v_fire : V) :
   vertex_degree G v_fire = ∑ u ∈ Finset.univ \ {v_fire}, ↑(num_edges G v_fire u) := by
   rw [vertex_degree_eq_sum_num_edges G v_fire]
@@ -408,12 +458,6 @@ def legal_set_firing (G : CFGraph V) (D : CFDiv V) (S : Finset V) : Prop :=
   ∀ v ∈ S, set_firing G D S v ≥ 0
 
 -- [NEW HELPER LEMMAS AND AXIOMS START HERE]
-
--- Axiom: Vertex degree is equal to the sum of the number of edges incident to the vertex
--- This is a standard graph theory identity that follows from definitions
--- Since the graph is loopless, all edges counted in vertex_degree connect v to some w ≠ v
-axiom vertex_degree_eq_sum_incident_edges (G : CFGraph V) (v : V) :
-  (vertex_degree G v : ℤ) = ∑ w in Finset.univ.erase v, (num_edges G v w : ℤ)
 
 lemma degree_of_firing_vector_is_zero (G : CFGraph V) (v_node : V) :
   deg (firing_vector G v_node) = 0 := by
