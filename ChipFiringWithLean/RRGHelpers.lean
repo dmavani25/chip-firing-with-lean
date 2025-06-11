@@ -34,7 +34,7 @@ lemma legal_firing_preserves_effective (G : CFGraph V) (D : CFDiv V) (S : Finset
         contradiction
       · -- If v ≠ x, then we get num_edges which is non-negative
         simp [hveq]
-    linarith
+    exact add_nonneg h1 h2
 
 -- [Proven] Proposition 3.2.4: q-reduced and effective implies winnable
 theorem winnable_iff_q_reduced_effective (G : CFGraph V) (q : V) (D : CFDiv V) :
